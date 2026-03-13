@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import StudentEditModal from './StudentEditModal';
 import StudentProfile from './StudentProfile';
 import {
   Chart as ChartJS,
@@ -60,12 +61,16 @@ function Dashboard() {
   const [studentProfile, setStudentProfile] = useState(null);
   const [searchMessage, setSearchMessage] = useState('');
   const [importMessage, setImportMessage] = useState('');
+  const [managementMessage, setManagementMessage] = useState('');
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
   const [students, setStudents] = useState([]);
   const [directoryImageErrors, setDirectoryImageErrors] = useState({});
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [deletingStudentId, setDeletingStudentId] = useState('');
   const [studentFilters, setStudentFilters] = useState({
     query: '',
     course: 'All',
@@ -108,6 +113,19 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const refreshStudentProfile = async (studentId) => {
+    try {
+      const response = await studentApi.getProfile(studentId);
+      setStudentProfile(response.data);
+    } catch (error) {
+      console.error('Profile refresh error:', error);
+
+      if (error.response?.status === 404) {
+        setStudentProfile(null);
+      }
+    }
+  };
+
   const openStudentProfile = async (studentId) => {
     try {
       const response = await studentApi.getProfile(studentId);
@@ -146,6 +164,70 @@ function Dashboard() {
     setStudentProfile(null);
     setSearchTerm('');
     setSearchMessage('');
+  };
+
+  const handleEditStudent = (student) => {
+    setEditingStudent(student);
+    setManagementMessage('');
+  };
+
+  const handleUpdateStudent = async (currentStudentId, submitData) => {
+    try {
+      setIsSavingStudent(true);
+      const response = await studentApi.update(currentStudentId, submitData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const updatedStudent = response.data.student;
+      setManagementMessage(`Updated ${updatedStudent.first_name} ${updatedStudent.last_name} successfully.`);
+      setEditingStudent(null);
+
+      await Promise.all([fetchStudents(), fetchStats()]);
+
+      if (studentProfile?.student?.student_id === currentStudentId) {
+        await refreshStudentProfile(updatedStudent.student_id);
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      throw error;
+    } finally {
+      setIsSavingStudent(false);
+    }
+  };
+
+  const handleDeleteStudent = async (student) => {
+    const studentLabel = `${student.first_name} ${student.last_name}`.trim();
+    const confirmed = window.confirm(
+      `Delete ${studentLabel} (${student.student_id})?\n\nThis also removes the student's attendance logs.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingStudentId(student.student_id);
+      await studentApi.remove(student.student_id);
+      setManagementMessage(`Deleted ${studentLabel} successfully.`);
+
+      if (editingStudent?.student_id === student.student_id) {
+        setEditingStudent(null);
+      }
+
+      if (studentProfile?.student?.student_id === student.student_id) {
+        setStudentProfile(null);
+      }
+
+      await Promise.all([fetchStudents(), fetchStats()]);
+    } catch (error) {
+      console.error('Delete error:', error);
+      const errorMessage = error.response?.data?.error || 'Unable to delete this student right now.';
+      setManagementMessage(`Error: ${errorMessage}`);
+    } finally {
+      setDeletingStudentId('');
+    }
   };
 
   const handleImportStudents = async (event) => {
@@ -563,6 +645,12 @@ function Dashboard() {
         </div>
       )}
 
+      {managementMessage && (
+        <div className={`alert ${managementMessage.includes('Error:') ? 'alert-danger' : 'alert-success'} mb-3`}>
+          {managementMessage}
+        </div>
+      )}
+
       <section className="dashboard-command-bar">
         <div className="dashboard-command-copy">
           <p className="dashboard-kicker">Library Control Center</p>
@@ -919,13 +1007,30 @@ function Dashboard() {
                     <td>{student.section || 'N/A'}</td>
                     <td>{student.email || 'N/A'}</td>
                     <td className="text-end">
-                      <button
-                        type="button"
-                        className="btn btn-outline-maroon btn-sm"
-                        onClick={() => openStudentProfile(student.student_id)}
-                      >
-                        View profile
-                      </button>
+                      <div className="dashboard-row-actions">
+                        <button
+                          type="button"
+                          className="btn btn-outline-maroon btn-sm"
+                          onClick={() => openStudentProfile(student.student_id)}
+                        >
+                          View profile
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={() => handleEditStudent(student)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger btn-sm"
+                          onClick={() => handleDeleteStudent(student)}
+                          disabled={deletingStudentId === student.student_id}
+                        >
+                          {deletingStudentId === student.student_id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -941,7 +1046,24 @@ function Dashboard() {
         </div>
       </section>
 
-      {studentProfile && <StudentProfile studentData={studentProfile} onClose={closeProfile} />}
+      {studentProfile && (
+        <StudentProfile
+          studentData={studentProfile}
+          onClose={closeProfile}
+          onEditStudent={handleEditStudent}
+          onDeleteStudent={handleDeleteStudent}
+          isDeletingStudent={deletingStudentId === studentProfile.student.student_id}
+        />
+      )}
+
+      {editingStudent && (
+        <StudentEditModal
+          student={editingStudent}
+          isSaving={isSavingStudent}
+          onClose={() => setEditingStudent(null)}
+          onSave={handleUpdateStudent}
+        />
+      )}
     </div>
   );
 }

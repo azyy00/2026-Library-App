@@ -1,11 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { CUTOFF_LABEL, isAfterCutoff } = require('../config/attendanceCutoff');
 
 router.post('/checkin', (req, res) => {
     console.log('Received check-in request:', req.body);
     const studentId = `${req.body.student_id || ''}`.trim();
     const purpose = `${req.body.purpose || ''}`.trim();
+
+    if (isAfterCutoff()) {
+        return res.status(403).json({
+            error: `Library attendance transactions close at ${CUTOFF_LABEL}. Active visitors are checked out automatically at the cutoff.`
+        });
+    }
     
     if (!studentId || !purpose) {
         return res.status(400).json({ error: 'Student ID and purpose are required' });
@@ -78,7 +85,8 @@ router.post('/checkin', (req, res) => {
 // Get active attendance records
 router.get('/active', (req, res) => {
     const query = `
-        SELECT al.*, s.student_id, s.first_name, s.last_name, s.course, s.year_level, s.section,
+        SELECT al.*, s.student_id, s.first_name, s.last_name, s.middle_name, s.course, s.year_level, s.section,
+               s.email, s.gender, s.address, s.profile_image,
                TIMESTAMPDIFF(MINUTE, al.check_in, NOW()) as minutes_inside
         FROM attendance_logs al
         JOIN students s ON al.student_id = s.id

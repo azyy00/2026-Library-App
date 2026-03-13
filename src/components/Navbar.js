@@ -5,20 +5,20 @@ const navGroups = [
   {
     title: 'Overview',
     items: [
-      { to: '/', label: 'Dashboard', end: true, badge: 'DB' }
+      { to: '/', label: 'Dashboard', end: true }
     ]
   },
   {
     title: 'Library Desk',
     items: [
-      { to: '/attendance', label: 'Attendance Desk', badge: 'AT' },
-      { to: '/active', label: 'Active Visitors', badge: 'AV' }
+      { to: '/attendance', label: 'Attendance Desk' },
+      { to: '/active', label: 'Active Visitors' }
     ]
   },
   {
     title: 'Records',
     items: [
-      { to: '/register', label: 'Student Registration', badge: 'RG' }
+      { to: '/register', label: 'Student Registration' }
     ]
   }
 ];
@@ -34,14 +34,6 @@ function Navbar() {
         </div>
       </div>
 
-      <div className="sidebar-campus-card">
-        <div className="sidebar-campus-badge">GC</div>
-        <div>
-          <strong>Campus Workspace</strong>
-          <span>Attendance and analytics portal</span>
-        </div>
-      </div>
-
       <div className="sidebar-nav-sections">
         {navGroups.map((group) => (
           <div key={group.title} className="sidebar-nav-group">
@@ -54,7 +46,6 @@ function Navbar() {
                   end={item.end}
                   className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
                 >
-                  <span className="sidebar-link-badge">{item.badge}</span>
                   <span>{item.label}</span>
                 </NavLink>
               ))}

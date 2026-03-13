@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import AttendanceStudentModal from './AttendanceStudentModal';
 import { attendanceApi, buildAssetUrl, studentApi } from '../services/api';
 
 const PURPOSE_OPTIONS = [
   {
     value: 'Study',
-    shortLabel: 'Quiet Study',
+    shortLabel: 'Study',
     description: 'Individual reading, review, and seat usage.'
   },
   {
@@ -30,19 +31,41 @@ const PURPOSE_OPTIONS = [
   }
 ];
 
+const CUTOFF_HOUR = 17;
+const CUTOFF_MINUTE = 0;
+const CUTOFF_LABEL = '5:00 PM';
+
+const isAfterCutoffTime = (date) => {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+
+  return hours > CUTOFF_HOUR || (hours === CUTOFF_HOUR && minutes >= CUTOFF_MINUTE);
+};
+
+const getStudentNameKey = (studentRecord) =>
+  [studentRecord?.first_name, studentRecord?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+    .toLowerCase();
+
 function AttendanceLog() {
   const [studentId, setStudentId] = useState('');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [purpose, setPurpose] = useState('');
   const [student, setStudent] = useState(null);
+  const [searchMatches, setSearchMatches] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [activeVisitors, setActiveVisitors] = useState([]);
   const [lastUpdated, setLastUpdated] = useState('');
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRefreshingVisitors, setIsRefreshingVisitors] = useState(false);
   const [screenTime, setScreenTime] = useState(new Date());
   const [showStudentImage, setShowStudentImage] = useState(false);
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+
+  const isAttendanceClosed = isAfterCutoffTime(screenTime);
 
   useEffect(() => {
     fetchActiveVisitors(true);
@@ -58,11 +81,14 @@ function AttendanceLog() {
     setShowStudentImage(Boolean(student?.profile_image));
   }, [student]);
 
-  const fetchActiveVisitors = async (initialLoad = false) => {
-    if (!initialLoad) {
-      setIsRefreshingVisitors(true);
+  useEffect(() => {
+    if (isAttendanceClosed) {
+      fetchActiveVisitors();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAttendanceClosed]);
 
+  const fetchActiveVisitors = async (initialLoad = false) => {
     try {
       const response = await attendanceApi.getActive();
       setActiveVisitors(response.data);
@@ -73,17 +99,19 @@ function AttendanceLog() {
         type: 'danger',
         text: 'Unable to load the active visitor list right now.'
       });
-    } finally {
-      setIsRefreshingVisitors(false);
     }
   };
 
   const resetAttendanceForm = (preserveFeedback = false) => {
     setStudentId('');
+    setActiveSearchQuery('');
     setStudent(null);
+    setSearchMatches([]);
     setPurpose('');
     setSearchAttempted(false);
     setShowStudentImage(false);
+    setIsStudentModalOpen(false);
+
     if (!preserveFeedback) {
       setFeedback(null);
     }
@@ -101,14 +129,18 @@ function AttendanceLog() {
     setIsSearching(true);
     setSearchAttempted(true);
     setFeedback(null);
+    setActiveSearchQuery(query);
 
     try {
       const response = await studentApi.search(query);
+      setSearchMatches(response.data);
       const exactMatch = response.data.find((item) => item.student_id === query);
       const matchedStudent = exactMatch || response.data[0] || null;
 
       if (!matchedStudent) {
         setStudent(null);
+        setSearchMatches([]);
+        setIsStudentModalOpen(false);
         setFeedback({
           type: 'warning',
           text: 'No student matched that search. You can register the student if needed.'
@@ -117,6 +149,7 @@ function AttendanceLog() {
       }
 
       setStudent(matchedStudent);
+      setIsStudentModalOpen(true);
       setFeedback({
         type: 'info',
         text: `Student record loaded for ${matchedStudent.first_name} ${matchedStudent.last_name}.`
@@ -124,6 +157,8 @@ function AttendanceLog() {
     } catch (error) {
       console.error('Search error:', error);
       setStudent(null);
+      setSearchMatches([]);
+      setIsStudentModalOpen(false);
       setFeedback({
         type: 'danger',
         text: error.response?.data?.error || 'Error searching for student.'
@@ -134,6 +169,14 @@ function AttendanceLog() {
   };
 
   const handleCheckIn = async () => {
+    if (isAttendanceClosed) {
+      setFeedback({
+        type: 'warning',
+        text: `Attendance transactions close at ${CUTOFF_LABEL}. Active visitors are checked out automatically at the cutoff.`
+      });
+      return;
+    }
+
     if (!student || !purpose) {
       setFeedback({
         type: 'warning',
@@ -157,6 +200,7 @@ function AttendanceLog() {
           minute: '2-digit'
         })}.`
       });
+      setIsStudentModalOpen(false);
       resetAttendanceForm(true);
       fetchActiveVisitors();
     } catch (error) {
@@ -171,249 +215,257 @@ function AttendanceLog() {
   };
 
   const selectedPurpose = PURPOSE_OPTIONS.find((item) => item.value === purpose);
+  const sameNameMatches = student
+    ? searchMatches.filter((item) => getStudentNameKey(item) === getStudentNameKey(student))
+    : [];
+  const modalMatchMode = sameNameMatches.length > 1
+    ? 'same_name'
+    : searchMatches.length > 1
+      ? 'search_results'
+      : 'single';
+  const modalMatchCandidates = modalMatchMode === 'same_name'
+    ? sameNameMatches
+    : modalMatchMode === 'search_results'
+      ? searchMatches
+      : [];
   const heroDate = screenTime.toLocaleDateString([], {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   });
+  const deskTime = screenTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="container mt-4">
-      <section className="attendance-hero">
-        <div className="attendance-hero-copy">
-          <p className="section-eyebrow">Goa Community College</p>
-          <h1 className="attendance-hero-title">Library Attendance and Visitor Monitoring</h1>
-          <p className="attendance-hero-text">
-            Manage student check-ins quickly, verify records before entry, and keep the active visitor list visible at the desk.
-          </p>
-          <div className="attendance-hero-meta">
-            <span>{heroDate}</span>
-            <span>{screenTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-        </div>
-
-        <div className="attendance-hero-brand">
-          <img src="/GCC-LOGO.png" alt="Goa Community College logo" className="attendance-hero-logo" />
-          <div>
-            <strong>GCC Library Services</strong>
-            <p className="mb-0">Attendance desk for student visits and activity tracking.</p>
-          </div>
+    <div className="attendance-desk-shell">
+      <section className="attendance-banner">
+        <p className="attendance-banner-kicker">Goa Community College Library</p>
+        <h1>ATTENDANCE</h1>
+        <div className="attendance-banner-meta">
+          <span>{heroDate}</span>
+          <span>{deskTime}</span>
+          <span>{isAttendanceClosed ? `Closed after ${CUTOFF_LABEL}` : `Open until ${CUTOFF_LABEL}`}</span>
         </div>
       </section>
 
-      <div className="row g-4">
-        <div className="col-xl-8">
-          <div className="attendance-panel">
-            <div className="attendance-summary-grid">
-              <div className="attendance-summary-card">
+      <section className="attendance-workspace-panel">
+        <div className="attendance-desk-grid">
+          <aside className="attendance-control-panel">
+            <div className="attendance-control-head">
+              <p className="section-eyebrow">The Active Desk</p>
+              <h3>The active desk</h3>
+              <p className="text-muted mb-0">
+                Select a purpose, load the student record, then save the attendance transaction from this panel.
+              </p>
+            </div>
+
+            <div className="attendance-control-stat">
+              <span>Open visitors</span>
+              <strong>{activeVisitors.length}</strong>
+              <small>{lastUpdated ? `Updated ${lastUpdated}` : 'Waiting for live data'}</small>
+            </div>
+
+            <div className="attendance-purpose-card">
+              <h4>Select Purpose</h4>
+              <div className="purpose-grid attendance-purpose-grid">
+                {PURPOSE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`purpose-option ${purpose === option.value ? 'purpose-option-active' : ''} ${isAttendanceClosed ? 'purpose-option-disabled' : ''}`}
+                    onClick={() => setPurpose(option.value)}
+                    disabled={isAttendanceClosed}
+                  >
+                    <strong>{option.shortLabel}</strong>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="attendance-control-actions">
+              <button
+                type="button"
+                className="btn btn-maroon"
+                onClick={handleCheckIn}
+                disabled={isSubmitting || !purpose || !student || isAttendanceClosed}
+              >
+                {isAttendanceClosed ? `Closed at ${CUTOFF_LABEL}` : isSubmitting ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => resetAttendanceForm()}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="attendance-control-note">
+              <span>Current purpose</span>
+              <strong>{selectedPurpose ? selectedPurpose.shortLabel : 'No purpose selected'}</strong>
+              <small>{selectedPurpose ? selectedPurpose.description : 'Pick one of the attendance categories.'}</small>
+            </div>
+          </aside>
+
+          <div className="attendance-main-panel">
+            <div className="attendance-search-strip">
+              <div className="attendance-search-copy">
+                <p className="section-eyebrow">Search Student</p>
+                <h3>Search student</h3>
+              </div>
+
+              <div className="input-group attendance-search-group">
+                <input
+                  type="text"
+                  className="form-control"
+                  value={studentId}
+                  onChange={(event) => setStudentId(event.target.value)}
+                  placeholder="Enter ID or Name"
+                  onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
+                />
+                <button
+                  type="button"
+                  className="btn btn-maroon"
+                  onClick={handleSearch}
+                  disabled={isSearching}
+                >
+                  {isSearching ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+            </div>
+
+            <div className="attendance-status-grid">
+              <div className="attendance-desk-card">
                 <span className="summary-label">Active now</span>
                 <strong>{activeVisitors.length}</strong>
                 <small>Students currently inside the library.</small>
               </div>
-              <div className="attendance-summary-card">
+              <div className="attendance-desk-card">
                 <span className="summary-label">Selected purpose</span>
                 <strong>{selectedPurpose ? selectedPurpose.shortLabel : 'Not selected'}</strong>
-                <small>{selectedPurpose ? selectedPurpose.description : 'Choose the activity before check-in.'}</small>
+                <small>{selectedPurpose ? selectedPurpose.description : 'Choose the visit purpose before saving.'}</small>
               </div>
-              <div className="attendance-summary-card">
+              <div className="attendance-desk-card">
                 <span className="summary-label">Current status</span>
-                <strong>{student ? 'Ready to check in' : 'Waiting for search'}</strong>
-                <small>{student ? `${student.first_name} ${student.last_name} is loaded.` : 'Search by student ID or full name.'}</small>
+                <strong>{isAttendanceClosed ? 'Desk closed after 5:00 PM' : student ? 'Record ready to save' : 'Waiting for search'}</strong>
+                <small>
+                  {isAttendanceClosed
+                    ? 'New attendance transactions are disabled after the cutoff.'
+                    : student
+                      ? `${student.first_name} ${student.last_name} is loaded for attendance.`
+                      : 'Search by student ID or full name.'}
+                </small>
               </div>
             </div>
 
-            <div className="row g-4">
-              <div className="col-lg-7">
-                <div className="attendance-block">
-                  <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
-                    <div>
-                      <p className="section-eyebrow">Step 1</p>
-                      <h4 className="mb-1">Find the student record</h4>
-                      <p className="text-muted mb-0">Search by student number for the fastest match.</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={resetAttendanceForm}
-                    >
-                      Clear
-                    </button>
-                  </div>
+            {isAttendanceClosed && (
+              <div className="alert alert-warning attendance-alert" role="alert">
+                Attendance transactions are closed after {CUTOFF_LABEL}. Any visitor still active at the cutoff is checked out automatically.
+              </div>
+            )}
 
-                  <div className="input-group input-group-lg mb-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={studentId}
-                      onChange={(event) => setStudentId(event.target.value)}
-                      placeholder="Enter student ID or full name"
-                      onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-maroon"
-                      onClick={handleSearch}
-                      disabled={isSearching}
-                    >
-                      {isSearching ? 'Searching...' : 'Search'}
-                    </button>
-                  </div>
+            {feedback && (
+              <div className={`alert alert-${feedback.type} attendance-alert`} role="alert">
+                {feedback.text}
+              </div>
+            )}
 
-                  <div className="mb-4">
-                    <p className="section-eyebrow">Step 2</p>
-                    <h5 className="mb-3">Select purpose of visit</h5>
-                    <div className="purpose-grid">
-                      {PURPOSE_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`purpose-option ${purpose === option.value ? 'purpose-option-active' : ''}`}
-                          onClick={() => setPurpose(option.value)}
-                        >
-                          <strong>{option.shortLabel}</strong>
-                          <span>{option.description}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+            <div className="attendance-main-grid">
+              <div className="attendance-guide-card">
+                <p className="section-eyebrow">Desktop Guide</p>
+                <h4>Desk top guide here</h4>
+                <ol className="mb-0">
+                  <li>Search the student using the official student number when possible.</li>
+                  <li>Confirm the purpose on the left panel before saving the attendance record.</li>
+                  <li>Review course and section details in the student preview before final submission.</li>
+                  <li>Open the active visitor list below when you need a full live view of open visits.</li>
+                </ol>
 
-                  {feedback && (
-                    <div className={`alert alert-${feedback.type} attendance-alert`} role="alert">
-                      {feedback.text}
-                    </div>
-                  )}
-
-                  {student ? (
-                    <div className="student-preview-card">
-                      <div className="student-preview-header">
-                        <div className="student-preview-avatar">
-                          {student.profile_image && showStudentImage ? (
-                            <img
-                              src={buildAssetUrl(student.profile_image)}
-                              alt={`${student.first_name} ${student.last_name}`}
-                              onError={() => setShowStudentImage(false)}
-                            />
-                          ) : (
-                            <span>{student.first_name?.[0] || 'S'}{student.last_name?.[0] || 'T'}</span>
-                          )}
-                        </div>
-                        <div>
-                          <h4 className="mb-1">{student.first_name} {student.last_name}</h4>
-                          <p className="text-muted mb-0">{student.student_id}</p>
-                        </div>
-                      </div>
-
-                      <div className="student-preview-details">
-                        <div>
-                          <span>Course</span>
-                          <strong>{student.course}</strong>
-                        </div>
-                        <div>
-                          <span>Year and section</span>
-                          <strong>{student.year_level}-{student.section}</strong>
-                        </div>
-                        <div>
-                          <span>Email</span>
-                          <strong>{student.email || 'No email on file'}</strong>
-                        </div>
-                      </div>
-
-                      <div className="d-flex flex-wrap gap-2 mt-4">
-                        <button
-                          type="button"
-                          className="btn btn-maroon btn-lg"
-                          onClick={handleCheckIn}
-                          disabled={isSubmitting || !purpose}
-                        >
-                          {isSubmitting ? 'Processing...' : 'Confirm check-in'}
-                        </button>
-                        <Link to="/" className="btn btn-outline-secondary btn-lg">
-                          View analytics
-                        </Link>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="attendance-empty-state">
-                      <h5 className="mb-2">No student selected yet</h5>
-                      <p className="text-muted mb-3">
-                        Search the student record first, then pick the purpose to complete attendance.
-                      </p>
-                      {searchAttempted && (
-                        <Link to="/register" className="btn btn-outline-maroon">
-                          Register new student
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <Link to="/active" className="btn btn-outline-maroon mt-4">
+                  Open full active visitor list
+                </Link>
               </div>
 
-              <div className="col-lg-5">
-                <div className="attendance-block h-100">
-                  <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
-                    <div>
-                      <p className="section-eyebrow">Live Desk View</p>
-                      <h4 className="mb-1">Current visitors</h4>
-                      <p className="text-muted mb-0">
-                        {lastUpdated ? `Last updated at ${lastUpdated}` : 'Loading current visitors'}
+              <div className="attendance-student-stage">
+                {student ? (
+                  <div className="student-preview-card">
+                    <div className="student-preview-header">
+                      <div className="student-preview-avatar">
+                        {student.profile_image && showStudentImage ? (
+                          <img
+                            src={buildAssetUrl(student.profile_image)}
+                            alt={`${student.first_name} ${student.last_name}`}
+                            onError={() => setShowStudentImage(false)}
+                          />
+                        ) : (
+                          <span>{student.first_name?.[0] || 'S'}{student.last_name?.[0] || 'T'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="section-eyebrow mb-2">Loaded student</p>
+                        <h4 className="mb-1">{student.first_name} {student.last_name}</h4>
+                        <p className="text-muted mb-0">{student.student_id}</p>
+                      </div>
+                    </div>
+
+                    <div className="student-preview-details">
+                      <div>
+                        <span>Course</span>
+                        <strong>{student.course}</strong>
+                      </div>
+                      <div>
+                        <span>Year and section</span>
+                        <strong>{student.year_level}-{student.section}</strong>
+                      </div>
+                      <div>
+                        <span>Email</span>
+                        <strong>{student.email || 'No email on file'}</strong>
+                      </div>
+                    </div>
+
+                    <div className="attendance-student-note">
+                      <strong>{isAttendanceClosed ? `Transactions closed at ${CUTOFF_LABEL}` : 'Ready for attendance save'}</strong>
+                      <p className="mb-0">
+                        {isAttendanceClosed
+                          ? 'Search remains available, but no new attendance transactions can be saved after the cutoff.'
+                          : 'If everything looks correct, use the Save button in the left panel to record this visit.'}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => fetchActiveVisitors()}
-                      disabled={isRefreshingVisitors}
-                    >
-                      {isRefreshingVisitors ? 'Refreshing...' : 'Refresh'}
-                    </button>
                   </div>
-
-                  {activeVisitors.length === 0 ? (
-                    <div className="attendance-empty-state compact">
-                      <h6 className="mb-2">Library floor is clear</h6>
-                      <p className="mb-0 text-muted">No active student visit is currently open.</p>
-                    </div>
-                  ) : (
-                    <div className="visitor-feed">
-                      {activeVisitors.slice(0, 6).map((visitor) => (
-                        <div key={visitor.id} className="visitor-feed-item">
-                          <div>
-                            <strong>{visitor.first_name} {visitor.last_name}</strong>
-                            <p className="mb-1">{visitor.student_id} · {visitor.course} {visitor.year_level}-{visitor.section}</p>
-                            <span>{visitor.purpose}</span>
-                          </div>
-                          <div className="visitor-feed-meta">
-                            <strong>{visitor.minutes_inside} min</strong>
-                            <small>inside</small>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <Link to="/active" className="btn btn-outline-maroon w-100 mt-3">
-                    Open full active visitor list
-                  </Link>
-                </div>
+                ) : (
+                  <div className="attendance-empty-state attendance-student-empty">
+                    <h5 className="mb-2">No student selected yet</h5>
+                    <p className="text-muted mb-3">
+                      Search the student record on the top right, then return to the left panel to save the attendance entry.
+                    </p>
+                    {searchAttempted && (
+                      <Link to="/register" className="btn btn-outline-maroon">
+                        Register new student
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="col-xl-4">
-          <div className="attendance-side-note">
-            <p className="section-eyebrow">Desk Guide</p>
-            <h4 className="mb-3">Recommended staff workflow</h4>
-            <ol className="mb-0">
-              <li>Search the student using the official student number.</li>
-              <li>Confirm course and section before selecting the visit purpose.</li>
-              <li>Use the active visitor panel to avoid duplicate open attendance records.</li>
-              <li>Register the student immediately if no record exists in the database.</li>
-            </ol>
-          </div>
-        </div>
-      </div>
+      <AttendanceStudentModal
+        student={student}
+        selectedPurpose={selectedPurpose}
+        matchCandidates={modalMatchCandidates}
+        matchMode={modalMatchMode}
+        searchQuery={activeSearchQuery}
+        isOpen={isStudentModalOpen}
+        isSaving={isSubmitting}
+        isAttendanceClosed={isAttendanceClosed}
+        cutoffLabel={CUTOFF_LABEL}
+        onClose={() => setIsStudentModalOpen(false)}
+        onSelectStudent={setStudent}
+        onSave={handleCheckIn}
+      />
     </div>
   );
 }

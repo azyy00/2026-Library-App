@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { buildAssetUrl } from '../services/api';
 
-function StudentProfile({ studentData, onClose }) {
+function StudentProfile({ studentData, onClose, onEditStudent, onDeleteStudent, isDeletingStudent }) {
   const [showImage, setShowImage] = useState(false);
   const profileImageUrl = buildAssetUrl(studentData?.student?.profile_image);
 
@@ -49,17 +49,39 @@ function StudentProfile({ studentData, onClose }) {
             <p className="profile-eyebrow">Student Activity Profile</p>
             <h3 className="mb-1">{fullName}</h3>
             <p className="text-muted mb-0">
-              {student.student_id} · {student.course} · Year {student.year_level}-{student.section}
+              {student.student_id} | {student.course} | Year {student.year_level}-{student.section}
             </p>
           </div>
-          <button
-            type="button"
-            className="btn btn-outline-secondary btn-sm"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            Close
-          </button>
+
+          <div className="student-modal-actions">
+            {onEditStudent && (
+              <button
+                type="button"
+                className="btn btn-outline-maroon btn-sm"
+                onClick={() => onEditStudent(student)}
+              >
+                Edit student
+              </button>
+            )}
+            {onDeleteStudent && (
+              <button
+                type="button"
+                className="btn btn-outline-danger btn-sm"
+                onClick={() => onDeleteStudent(student)}
+                disabled={isDeletingStudent}
+              >
+                {isDeletingStudent ? 'Deleting...' : 'Delete student'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              Close
+            </button>
+          </div>
         </div>
 
         <div className="modal-body">

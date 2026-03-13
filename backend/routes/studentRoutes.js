@@ -5,6 +5,28 @@ const fs = require('fs');
 const router = express.Router();
 const db = require('../config/db');
 
+const resolveStoredFilePath = (storedPath) => {
+  if (!storedPath || /^https?:\/\//i.test(storedPath)) {
+    return '';
+  }
+
+  return path.join(__dirname, '..', storedPath.replace(/^\/+/, ''));
+};
+
+const safeRemoveFile = (storedPath) => {
+  const filePath = resolveStoredFilePath(storedPath);
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    return;
+  }
+
+  try {
+    fs.unlinkSync(filePath);
+  } catch (error) {
+    console.error('Error removing uploaded file:', error);
+  }
+};
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -128,7 +150,7 @@ router.get('/search', (req, res) => {
         OR last_name LIKE ?
         OR CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?
         ORDER BY last_name ASC, first_name ASC
-        LIMIT 12
+        LIMIT 30
     `;
     
     db.query(query, [searchTerm, likeTerm, likeTerm, likeTerm, likeTerm], (err, results) => {
@@ -218,6 +240,122 @@ router.post('/', upload.single('profile_image'), (req, res) => {
             return;
         }
         res.status(201).json({ id: result.insertId, ...studentData });
+    });
+});
+
+// Update student
+router.put('/:student_id', upload.single('profile_image'), (req, res) => {
+    const currentStudentId = req.params.student_id;
+
+    db.query('SELECT * FROM students WHERE student_id = ?', [currentStudentId], (findErr, studentResults) => {
+        if (findErr) {
+            if (req.file) {
+                safeRemoveFile(`/uploads/profiles/${req.file.filename}`);
+            }
+
+            res.status(500).json({ error: findErr.message });
+            return;
+        }
+
+        if (studentResults.length === 0) {
+            if (req.file) {
+                safeRemoveFile(`/uploads/profiles/${req.file.filename}`);
+            }
+
+            res.status(404).json({ error: 'Student not found' });
+            return;
+        }
+
+        const existingStudent = studentResults[0];
+        const studentData = { ...req.body };
+
+        if (req.file) {
+            studentData.profile_image = `/uploads/profiles/${req.file.filename}`;
+        }
+
+        db.query(
+            'UPDATE students SET ? WHERE student_id = ?',
+            [studentData, currentStudentId],
+            (updateErr, result) => {
+                if (updateErr) {
+                    if (req.file) {
+                        safeRemoveFile(studentData.profile_image);
+                    }
+
+                    if (updateErr.code === 'ER_DUP_ENTRY') {
+                        res.status(409).json({ error: 'Student ID already exists' });
+                        return;
+                    }
+
+                    res.status(500).json({ error: updateErr.message });
+                    return;
+                }
+
+                if (result.affectedRows === 0) {
+                    if (req.file) {
+                        safeRemoveFile(studentData.profile_image);
+                    }
+
+                    res.status(404).json({ error: 'Student not found' });
+                    return;
+                }
+
+                if (req.file && existingStudent.profile_image) {
+                    safeRemoveFile(existingStudent.profile_image);
+                }
+
+                const nextStudentId = studentData.student_id || currentStudentId;
+
+                db.query('SELECT * FROM students WHERE student_id = ?', [nextStudentId], (reloadErr, updatedResults) => {
+                    if (reloadErr) {
+                        res.status(500).json({ error: reloadErr.message });
+                        return;
+                    }
+
+                    res.json({
+                        message: 'Student updated successfully',
+                        student: updatedResults[0]
+                    });
+                });
+            }
+        );
+    });
+});
+
+// Delete student
+router.delete('/:student_id', (req, res) => {
+    const currentStudentId = req.params.student_id;
+
+    db.query('SELECT * FROM students WHERE student_id = ?', [currentStudentId], (findErr, studentResults) => {
+        if (findErr) {
+            res.status(500).json({ error: findErr.message });
+            return;
+        }
+
+        if (studentResults.length === 0) {
+            res.status(404).json({ error: 'Student not found' });
+            return;
+        }
+
+        const existingStudent = studentResults[0];
+
+        db.query('DELETE FROM students WHERE student_id = ?', [currentStudentId], (deleteErr, result) => {
+            if (deleteErr) {
+                res.status(500).json({ error: deleteErr.message });
+                return;
+            }
+
+            if (result.affectedRows === 0) {
+                res.status(404).json({ error: 'Student not found' });
+                return;
+            }
+
+            if (existingStudent.profile_image) {
+                safeRemoveFile(existingStudent.profile_image);
+            }
+
+            res.json({ message: 'Student deleted successfully' });
+        });
     });
 });
 

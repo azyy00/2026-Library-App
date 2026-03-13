@@ -24,7 +24,9 @@ export const studentApi = {
   getAll: () => api.get('/students'),
   create: (data, config = {}) => api.post('/students', data, config),
   search: (query) => api.get('/students/search', { params: { q: query } }),
-  getProfile: (studentId) => api.get(`/students/profile/${studentId}`)
+  getProfile: (studentId) => api.get(`/students/profile/${studentId}`),
+  update: (studentId, data, config = {}) => api.put(`/students/${studentId}`, data, config),
+  remove: (studentId) => api.delete(`/students/${studentId}`)
 };
 
 export const attendanceApi = {
