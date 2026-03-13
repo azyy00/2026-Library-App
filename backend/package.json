@@ -1,0 +1,27 @@
+{
+  "name": "library-backend",
+  "version": "1.0.0",
+  "description": "Library Attendance System Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bootstrap": "^5.3.8",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.6.0",
+    "path": "^0.12.7",
+    "react-router-dom": "^7.9.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

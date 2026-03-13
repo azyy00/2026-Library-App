@@ -1,0 +1,15 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  background-color: #f5f5f5;
+  padding: 20px 0;
+}
+
+.navbar-brand img {
+  filter: brightness(0) invert(1);
+}
