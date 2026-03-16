@@ -1,7 +1,7 @@
 # Library Management System Setup Guide
 
 ## Prerequisites
-- Node.js (v14 or higher)
+- Node.js (v20 recommended)
 - MySQL Server
 - Git
 
@@ -17,16 +17,15 @@
    -- Or copy and paste the contents of database/schema.sql
    ```
 
-3. **Update Database Configuration**
-   - Edit `backend/config/db.js`
-   - Update the connection details if needed:
-     ```javascript
-     const connection = mysql.createConnection({
-         host: 'localhost',
-         user: 'root',           // Your MySQL username
-         password: '',           // Your MySQL password
-         database: 'library_attendance'
-     });
+3. **Create backend environment variables**
+   - Copy `backend/.env.example` to `backend/.env`
+   - Update these values for your local MySQL server:
+     ```env
+     DB_HOST=localhost
+     DB_PORT=3306
+     DB_USER=root
+     DB_PASSWORD=
+     DB_NAME=library_attendance
      ```
 
 ## Backend Setup
@@ -112,6 +111,55 @@ Use this option when the frontend should be hosted on Vercel while the backend s
 - `vercel.json` includes a rewrite so React Router routes like `/attendance` and `/active` work on refresh
 - Uploaded student profile images are still served from the backend host, not Vercel
 - The sample value is also available in `.env.example`
+
+## Backend Deployment Online
+
+Use this option when the Express backend should run on a public Node host such as Koyeb or Render.
+
+### Recommended stack
+- Backend host: Koyeb free service
+- Database: Aiven for MySQL free tier
+- Image hosting: Cloudinary free plan
+
+### Backend environment variables
+
+Copy `backend/.env.example` into your host dashboard and update the values:
+
+```env
+PORT=8000
+CLIENT_ORIGIN=https://your-frontend-domain.vercel.app
+
+DB_HOST=your-mysql-host
+DB_PORT=25060
+DB_USER=your-mysql-user
+DB_PASSWORD=your-mysql-password
+DB_NAME=defaultdb
+DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=false
+
+FILE_STORAGE=cloudinary
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+CLOUDINARY_FOLDER=library-app/profiles
+```
+
+### Important deployment notes
+
+- The backend now reads the port from `PORT`, so cloud hosts can assign their own port automatically
+- Database credentials are read from environment variables instead of hardcoded local values
+- Student profile images can use Cloudinary in production, which avoids data loss from temporary server filesystems
+- If `FILE_STORAGE=local`, images are still stored under `backend/uploads/profiles` for local development
+- A `backend/Dockerfile` is included if your host prefers Docker-based deployment
+
+### Suggested deployment flow
+
+1. Create a MySQL database online and import `database/schema-managed.sql`
+2. Create a Cloudinary account for student profile images
+3. Deploy the `backend` folder to a Node host
+4. Add all backend environment variables in the host dashboard
+5. Update the frontend `REACT_APP_API_URL` to your deployed backend URL plus `/api`
+6. Redeploy the frontend
 
 ## Features
 

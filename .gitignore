@@ -1,4 +1,7 @@
 node_modules
 build
+.env.local
+backend/.env
+backend/.env.local
 backend/uploads/profiles/*
 !backend/uploads/profiles/.gitkeep

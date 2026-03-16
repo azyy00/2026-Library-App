@@ -1,362 +1,322 @@
 const express = require('express');
+const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const router = express.Router();
 const db = require('../config/db');
+const {
+  ensureLocalUploadDir,
+  removeStoredProfileImage,
+  storeUploadedProfileImage,
+  usesCloudinaryStorage,
+  usesLocalStorage
+} = require('../config/storage');
 
-const resolveStoredFilePath = (storedPath) => {
-  if (!storedPath || /^https?:\/\//i.test(storedPath)) {
-    return '';
-  }
+const router = express.Router();
 
-  return path.join(__dirname, '..', storedPath.replace(/^\/+/, ''));
-};
+const runQuery = (query, values = []) =>
+  new Promise((resolve, reject) => {
+    db.query(query, values, (error, results) => {
+      if (error) {
+        reject(error);
+        return;
+      }
 
-const safeRemoveFile = (storedPath) => {
-  const filePath = resolveStoredFilePath(storedPath);
+      resolve(results);
+    });
+  });
 
-  if (!filePath || !fs.existsSync(filePath)) {
-    return;
-  }
+const storage = usesCloudinaryStorage()
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination(req, file, cb) {
+        cb(null, ensureLocalUploadDir());
+      },
+      filename(req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, `profile-${uniqueSuffix}${path.extname(file.originalname)}`);
+      }
+    });
 
-  try {
-    fs.unlinkSync(filePath);
-  } catch (error) {
-    console.error('Error removing uploaded file:', error);
-  }
-};
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../uploads/profiles');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
+const upload = multer({
+  storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024
   },
-  fileFilter: function (req, file, cb) {
+  fileFilter(req, file, cb) {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'));
+      cb(null, true);
+      return;
     }
+
+    cb(new Error('Only image files are allowed!'));
   }
 });
 
-// Test route
 router.get('/test', (req, res) => {
-    res.json({ message: 'Student routes are working!' });
+  res.json({
+    message: 'Student routes are working!',
+    storage: usesCloudinaryStorage() ? 'cloudinary' : 'local'
+  });
 });
 
-// Get all students
-router.get('/', (req, res) => {
-    db.query('SELECT * FROM students', (err, results) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(results);
-    });
+router.get('/', async (req, res) => {
+  try {
+    const results = await runQuery('SELECT * FROM students');
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Get student profile with activities (MUST be before /search route)
-router.get('/profile/:student_id', (req, res) => {
-    const studentId = req.params.student_id;
-    console.log('Profile request for student ID:', studentId); // Debug log
-    
-    // Get student info
-    db.query('SELECT * FROM students WHERE student_id = ?', [studentId], (err, studentResults) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
-        if (studentResults.length === 0) {
-            res.status(404).json({ error: 'Student not found' });
-            return;
-        }
-        
-        const student = studentResults[0];
-        
-        // Get student activities (attendance history)
-        const activitiesQuery = `
-            SELECT al.*, 
-                   CASE 
-                       WHEN al.check_out IS NULL THEN 'Currently Active'
-                       ELSE CONCAT('Checked out at ', DATE_FORMAT(al.check_out, '%Y-%m-%d %H:%i:%s'))
-                   END as status,
-                   TIMESTAMPDIFF(MINUTE, al.check_in, COALESCE(al.check_out, NOW())) as duration_minutes
-            FROM attendance_logs al
-            WHERE al.student_id = ?
-            ORDER BY al.check_in DESC
-            LIMIT 20
-        `;
-        
-        db.query(activitiesQuery, [student.id], (err, activitiesResults) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            
-            // Get total visits count
-            db.query('SELECT COUNT(*) as total_visits FROM attendance_logs WHERE student_id = ?', [student.id], (err, countResults) => {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                
-                res.json({
-                    student: student,
-                    activities: activitiesResults,
-                    total_visits: countResults[0].total_visits
-                });
-            });
-        });
-    });
-});
+router.get('/profile/:student_id', async (req, res) => {
+  const studentId = req.params.student_id;
+  console.log('Profile request for student ID:', studentId);
 
-// Search students
-router.get('/search', (req, res) => {
-    const searchTerm = `${req.query.q || ''}`.trim();
-    console.log('Searching for student:', searchTerm); // Debug log
+  try {
+    const studentResults = await runQuery('SELECT * FROM students WHERE student_id = ?', [studentId]);
 
-    if (!searchTerm) {
-        return res.status(400).json({ error: 'Search term is required' });
+    if (studentResults.length === 0) {
+      res.status(404).json({ error: 'Student not found' });
+      return;
     }
 
-    const likeTerm = `%${searchTerm}%`;
-    const query = `
-        SELECT * FROM students 
-        WHERE student_id = ?
-        OR student_id LIKE ?
-        OR first_name LIKE ?
-        OR last_name LIKE ?
-        OR CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?
-        ORDER BY last_name ASC, first_name ASC
-        LIMIT 30
+    const student = studentResults[0];
+    const activitiesQuery = `
+      SELECT al.*, 
+             CASE 
+               WHEN al.check_out IS NULL THEN 'Currently Active'
+               ELSE CONCAT('Checked out at ', DATE_FORMAT(al.check_out, '%Y-%m-%d %H:%i:%s'))
+             END as status,
+             TIMESTAMPDIFF(MINUTE, al.check_in, COALESCE(al.check_out, NOW())) as duration_minutes
+      FROM attendance_logs al
+      WHERE al.student_id = ?
+      ORDER BY al.check_in DESC
+      LIMIT 20
     `;
-    
-    db.query(query, [searchTerm, likeTerm, likeTerm, likeTerm, likeTerm], (err, results) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ 
-                error: 'Database error', 
-                details: err.message 
-            });
-        }
-        console.log('Search results:', results); // Debug log
-        res.json(results);
-    });
-});
-
-// Upload profile image
-router.post('/upload-image/:student_id', upload.single('profile_image'), (req, res) => {
-    const studentId = req.params.student_id;
-    
-    if (!req.file) {
-        return res.status(400).json({ error: 'No image file provided' });
-    }
-    
-    const imagePath = `/uploads/profiles/${req.file.filename}`;
-    
-    // Update student record with image path
-    db.query(
-        'UPDATE students SET profile_image = ? WHERE student_id = ?',
-        [imagePath, studentId],
-        (err, result) => {
-            if (err) {
-                // Delete uploaded file if database update fails
-                fs.unlinkSync(req.file.path);
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            
-            if (result.affectedRows === 0) {
-                // Delete uploaded file if student not found
-                fs.unlinkSync(req.file.path);
-                res.status(404).json({ error: 'Student not found' });
-                return;
-            }
-            
-            res.json({ 
-                message: 'Image uploaded successfully',
-                imagePath: imagePath
-            });
-        }
+    const activitiesResults = await runQuery(activitiesQuery, [student.id]);
+    const countResults = await runQuery(
+      'SELECT COUNT(*) as total_visits FROM attendance_logs WHERE student_id = ?',
+      [student.id]
     );
+
+    res.json({
+      student,
+      activities: activitiesResults,
+      total_visits: countResults[0].total_visits
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Serve uploaded images
+router.get('/search', async (req, res) => {
+  const searchTerm = `${req.query.q || ''}`.trim();
+  console.log('Searching for student:', searchTerm);
+
+  if (!searchTerm) {
+    res.status(400).json({ error: 'Search term is required' });
+    return;
+  }
+
+  const likeTerm = `%${searchTerm}%`;
+  const query = `
+    SELECT * FROM students 
+    WHERE student_id = ?
+    OR student_id LIKE ?
+    OR first_name LIKE ?
+    OR last_name LIKE ?
+    OR CONCAT_WS(' ', first_name, middle_name, last_name) LIKE ?
+    ORDER BY last_name ASC, first_name ASC
+    LIMIT 30
+  `;
+
+  try {
+    const results = await runQuery(query, [searchTerm, likeTerm, likeTerm, likeTerm, likeTerm]);
+    console.log('Search results:', results);
+    res.json(results);
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({
+      error: 'Database error',
+      details: error.message
+    });
+  }
+});
+
+router.post('/upload-image/:student_id', upload.single('profile_image'), async (req, res) => {
+  const studentId = req.params.student_id;
+
+  if (!req.file) {
+    res.status(400).json({ error: 'No image file provided' });
+    return;
+  }
+
+  let imagePath = '';
+
+  try {
+    const studentResults = await runQuery('SELECT * FROM students WHERE student_id = ?', [studentId]);
+
+    if (studentResults.length === 0) {
+      res.status(404).json({ error: 'Student not found' });
+      return;
+    }
+
+    imagePath = await storeUploadedProfileImage(req.file);
+    await runQuery('UPDATE students SET profile_image = ? WHERE student_id = ?', [imagePath, studentId]);
+
+    if (studentResults[0].profile_image) {
+      await removeStoredProfileImage(studentResults[0].profile_image).catch((error) => {
+        console.error('Unable to remove previous profile image:', error.message);
+      });
+    }
+
+    res.json({
+      message: 'Image uploaded successfully',
+      imagePath
+    });
+  } catch (error) {
+    if (imagePath) {
+      await removeStoredProfileImage(imagePath).catch(() => {});
+    }
+
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/image/:filename', (req, res) => {
-    const filename = req.params.filename;
-    const imagePath = path.join(__dirname, '../uploads/profiles', filename);
-    
-    if (fs.existsSync(imagePath)) {
-        res.sendFile(imagePath);
-    } else {
-        res.status(404).json({ error: 'Image not found' });
-    }
+  if (!usesLocalStorage()) {
+    res.status(404).json({ error: 'Local image route is disabled while cloud storage is active' });
+    return;
+  }
+
+  const filename = req.params.filename;
+  const imagePath = path.join(__dirname, '../uploads/profiles', filename);
+
+  if (fs.existsSync(imagePath)) {
+    res.sendFile(imagePath);
+    return;
+  }
+
+  res.status(404).json({ error: 'Image not found' });
 });
 
-// Add new student
-router.post('/', upload.single('profile_image'), (req, res) => {
-    const studentData = { ...req.body };
-    
-    // Handle profile image if uploaded
+router.post('/', upload.single('profile_image'), async (req, res) => {
+  const studentData = { ...req.body };
+  let imagePath = '';
+
+  try {
     if (req.file) {
-        studentData.profile_image = `/uploads/profiles/${req.file.filename}`;
+      imagePath = await storeUploadedProfileImage(req.file);
+      studentData.profile_image = imagePath;
     }
-    
-    db.query('INSERT INTO students SET ?', studentData, (err, result) => {
-        if (err) {
-            // Delete uploaded file if database insert fails
-            if (req.file) {
-                fs.unlinkSync(req.file.path);
-            }
 
-            if (err.code === 'ER_DUP_ENTRY') {
-                res.status(409).json({ error: 'Student ID already exists' });
-                return;
-            }
+    const result = await runQuery('INSERT INTO students SET ?', studentData);
+    res.status(201).json({ id: result.insertId, ...studentData });
+  } catch (error) {
+    if (imagePath) {
+      await removeStoredProfileImage(imagePath).catch(() => {});
+    }
 
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.status(201).json({ id: result.insertId, ...studentData });
-    });
+    if (error.code === 'ER_DUP_ENTRY') {
+      res.status(409).json({ error: 'Student ID already exists' });
+      return;
+    }
+
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Update student
-router.put('/:student_id', upload.single('profile_image'), (req, res) => {
-    const currentStudentId = req.params.student_id;
+router.put('/:student_id', upload.single('profile_image'), async (req, res) => {
+  const currentStudentId = req.params.student_id;
+  let newImagePath = '';
 
-    db.query('SELECT * FROM students WHERE student_id = ?', [currentStudentId], (findErr, studentResults) => {
-        if (findErr) {
-            if (req.file) {
-                safeRemoveFile(`/uploads/profiles/${req.file.filename}`);
-            }
+  try {
+    const studentResults = await runQuery('SELECT * FROM students WHERE student_id = ?', [currentStudentId]);
 
-            res.status(500).json({ error: findErr.message });
-            return;
-        }
+    if (studentResults.length === 0) {
+      res.status(404).json({ error: 'Student not found' });
+      return;
+    }
 
-        if (studentResults.length === 0) {
-            if (req.file) {
-                safeRemoveFile(`/uploads/profiles/${req.file.filename}`);
-            }
+    const existingStudent = studentResults[0];
+    const studentData = { ...req.body };
 
-            res.status(404).json({ error: 'Student not found' });
-            return;
-        }
+    if (req.file) {
+      newImagePath = await storeUploadedProfileImage(req.file);
+      studentData.profile_image = newImagePath;
+    }
 
-        const existingStudent = studentResults[0];
-        const studentData = { ...req.body };
+    const result = await runQuery('UPDATE students SET ? WHERE student_id = ?', [studentData, currentStudentId]);
 
-        if (req.file) {
-            studentData.profile_image = `/uploads/profiles/${req.file.filename}`;
-        }
+    if (result.affectedRows === 0) {
+      if (newImagePath) {
+        await removeStoredProfileImage(newImagePath).catch(() => {});
+      }
 
-        db.query(
-            'UPDATE students SET ? WHERE student_id = ?',
-            [studentData, currentStudentId],
-            (updateErr, result) => {
-                if (updateErr) {
-                    if (req.file) {
-                        safeRemoveFile(studentData.profile_image);
-                    }
+      res.status(404).json({ error: 'Student not found' });
+      return;
+    }
 
-                    if (updateErr.code === 'ER_DUP_ENTRY') {
-                        res.status(409).json({ error: 'Student ID already exists' });
-                        return;
-                    }
+    if (newImagePath && existingStudent.profile_image) {
+      await removeStoredProfileImage(existingStudent.profile_image).catch((error) => {
+        console.error('Unable to remove previous profile image:', error.message);
+      });
+    }
 
-                    res.status(500).json({ error: updateErr.message });
-                    return;
-                }
+    const nextStudentId = studentData.student_id || currentStudentId;
+    const updatedResults = await runQuery('SELECT * FROM students WHERE student_id = ?', [nextStudentId]);
 
-                if (result.affectedRows === 0) {
-                    if (req.file) {
-                        safeRemoveFile(studentData.profile_image);
-                    }
-
-                    res.status(404).json({ error: 'Student not found' });
-                    return;
-                }
-
-                if (req.file && existingStudent.profile_image) {
-                    safeRemoveFile(existingStudent.profile_image);
-                }
-
-                const nextStudentId = studentData.student_id || currentStudentId;
-
-                db.query('SELECT * FROM students WHERE student_id = ?', [nextStudentId], (reloadErr, updatedResults) => {
-                    if (reloadErr) {
-                        res.status(500).json({ error: reloadErr.message });
-                        return;
-                    }
-
-                    res.json({
-                        message: 'Student updated successfully',
-                        student: updatedResults[0]
-                    });
-                });
-            }
-        );
+    res.json({
+      message: 'Student updated successfully',
+      student: updatedResults[0]
     });
+  } catch (error) {
+    if (newImagePath) {
+      await removeStoredProfileImage(newImagePath).catch(() => {});
+    }
+
+    if (error.code === 'ER_DUP_ENTRY') {
+      res.status(409).json({ error: 'Student ID already exists' });
+      return;
+    }
+
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Delete student
-router.delete('/:student_id', (req, res) => {
-    const currentStudentId = req.params.student_id;
+router.delete('/:student_id', async (req, res) => {
+  const currentStudentId = req.params.student_id;
 
-    db.query('SELECT * FROM students WHERE student_id = ?', [currentStudentId], (findErr, studentResults) => {
-        if (findErr) {
-            res.status(500).json({ error: findErr.message });
-            return;
-        }
+  try {
+    const studentResults = await runQuery('SELECT * FROM students WHERE student_id = ?', [currentStudentId]);
 
-        if (studentResults.length === 0) {
-            res.status(404).json({ error: 'Student not found' });
-            return;
-        }
+    if (studentResults.length === 0) {
+      res.status(404).json({ error: 'Student not found' });
+      return;
+    }
 
-        const existingStudent = studentResults[0];
+    const existingStudent = studentResults[0];
+    const result = await runQuery('DELETE FROM students WHERE student_id = ?', [currentStudentId]);
 
-        db.query('DELETE FROM students WHERE student_id = ?', [currentStudentId], (deleteErr, result) => {
-            if (deleteErr) {
-                res.status(500).json({ error: deleteErr.message });
-                return;
-            }
+    if (result.affectedRows === 0) {
+      res.status(404).json({ error: 'Student not found' });
+      return;
+    }
 
-            if (result.affectedRows === 0) {
-                res.status(404).json({ error: 'Student not found' });
-                return;
-            }
+    if (existingStudent.profile_image) {
+      await removeStoredProfileImage(existingStudent.profile_image).catch((error) => {
+        console.error('Unable to remove deleted student image:', error.message);
+      });
+    }
 
-            if (existingStudent.profile_image) {
-                safeRemoveFile(existingStudent.profile_image);
-            }
-
-            res.json({ message: 'Student deleted successfully' });
-        });
-    });
+    res.json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;
