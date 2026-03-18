@@ -32,6 +32,7 @@ export const studentApi = {
 export const attendanceApi = {
   checkIn: (data) => api.post('/attendance/checkin', data),
   getActive: () => api.get('/attendance/active'),
+  getTracker: (params = {}) => api.get('/attendance/tracker', { params }),
   exportReport: () => api.get('/attendance/export'),
   checkOut: (id) => api.post(`/attendance/checkout/${id}`)
 };

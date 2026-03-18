@@ -289,7 +289,6 @@ function ActiveVisitors() {
             <div className="active-visitor-list">
               {filteredVisitors.map((visitor) => {
                 const isSelected = visitor.id === selectedVisitor?.id;
-                const visitorImageUrl = buildAssetUrl(visitor.profile_image);
                 const visitorName = [visitor.first_name, visitor.middle_name, visitor.last_name].filter(Boolean).join(' ');
 
                 return (
@@ -298,26 +297,14 @@ function ActiveVisitors() {
                       type="button"
                       className="active-visitor-card-main"
                       onClick={() => setSelectedVisitorId(visitor.id)}
+                      aria-pressed={isSelected}
+                      aria-label={`View details for ${visitorName}`}
                     >
-                      <div className="dashboard-student-cell">
-                        <div className="dashboard-student-avatar active-visitor-avatar">
-                          {visitorImageUrl ? (
-                            <img src={visitorImageUrl} alt={visitorName} />
-                          ) : (
-                            <span>{getVisitorInitials(visitor)}</span>
-                          )}
-                        </div>
-
-                        <div>
-                          <strong>{visitorName}</strong>
-                          <small>{visitor.student_id} | {visitor.course} {visitor.year_level}-{visitor.section}</small>
-                        </div>
-                      </div>
-
-                      <div className="active-visitor-card-meta">
-                        <span className="purpose-badge">{visitor.purpose}</span>
-                        <span>{formatDuration(visitor.minutes_inside)}</span>
-                        <span>Checked in {formatDateTime(visitor.check_in)}</span>
+                      <div className="active-visitor-card-copy">
+                        <strong className="active-visitor-card-name">{visitorName}</strong>
+                        <small className="active-visitor-card-subcopy">
+                          {`ID: ${visitor.student_id} | ${visitor.course || 'N/A'} ${visitor.year_level || 'N/A'}-${visitor.section || 'N/A'}`}
+                        </small>
                       </div>
                     </button>
 

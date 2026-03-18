@@ -103,6 +103,111 @@ router.get('/active', (req, res) => {
     });
 });
 
+router.get('/tracker', (req, res) => {
+    const period = `${req.query.period || 'today'}`.toLowerCase();
+    const status = `${req.query.status || 'all'}`.toLowerCase();
+
+    const allowedPeriods = new Set(['today', 'week', 'month', 'all']);
+    const allowedStatuses = new Set(['all', 'pending', 'completed']);
+
+    if (!allowedPeriods.has(period)) {
+        return res.status(400).json({ error: 'Invalid period filter.' });
+    }
+
+    if (!allowedStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid status filter.' });
+    }
+
+    const periodClauses = {
+        today: 'DATE(COALESCE(al.check_out, al.check_in)) = CURDATE()',
+        week: 'YEARWEEK(COALESCE(al.check_out, al.check_in), 1) = YEARWEEK(CURDATE(), 1)',
+        month: 'YEAR(COALESCE(al.check_out, al.check_in)) = YEAR(CURDATE()) AND MONTH(COALESCE(al.check_out, al.check_in)) = MONTH(CURDATE())',
+        all: '1 = 1'
+    };
+
+    const statusClauses = {
+        all: '1 = 1',
+        pending: 'al.check_out IS NULL',
+        completed: 'al.check_out IS NOT NULL'
+    };
+
+    const whereClauses = [];
+
+    if (periodClauses[period] !== '1 = 1') {
+        whereClauses.push(periodClauses[period]);
+    }
+
+    if (statusClauses[status] !== '1 = 1') {
+        whereClauses.push(statusClauses[status]);
+    }
+
+    const whereStatement = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const summaryQuery = `
+        SELECT
+            COUNT(CASE WHEN check_out IS NOT NULL AND DATE(check_out) = CURDATE() THEN 1 END) AS today_checked_out,
+            COUNT(CASE WHEN check_out IS NOT NULL AND YEARWEEK(check_out, 1) = YEARWEEK(CURDATE(), 1) THEN 1 END) AS week_checked_out,
+            COUNT(CASE WHEN check_out IS NOT NULL AND YEAR(check_out) = YEAR(CURDATE()) AND MONTH(check_out) = MONTH(CURDATE()) THEN 1 END) AS month_checked_out,
+            COUNT(CASE WHEN check_out IS NULL THEN 1 END) AS pending_count,
+            COUNT(CASE WHEN check_out IS NOT NULL THEN 1 END) AS completed_count
+        FROM attendance_logs
+    `;
+
+    const recordsQuery = `
+        SELECT
+            al.id,
+            s.student_id,
+            s.first_name,
+            s.last_name,
+            s.course,
+            s.year_level,
+            s.section,
+            al.purpose,
+            al.check_in,
+            al.check_out,
+            CASE
+                WHEN al.check_out IS NULL THEN 'Pending'
+                ELSE 'Completed'
+            END AS status,
+            CASE
+                WHEN al.check_out IS NULL THEN TIMESTAMPDIFF(MINUTE, al.check_in, NOW())
+                ELSE TIMESTAMPDIFF(MINUTE, al.check_in, al.check_out)
+            END AS duration_minutes
+        FROM attendance_logs al
+        JOIN students s ON al.student_id = s.id
+        ${whereStatement}
+        ORDER BY COALESCE(al.check_out, al.check_in) DESC
+        LIMIT 200
+    `;
+
+    db.query(summaryQuery, (summaryErr, summaryResults) => {
+        if (summaryErr) {
+            return res.status(500).json({ error: summaryErr.message });
+        }
+
+        db.query(recordsQuery, (recordsErr, recordResults) => {
+            if (recordsErr) {
+                return res.status(500).json({ error: recordsErr.message });
+            }
+
+            res.json({
+                filters: {
+                    period,
+                    status
+                },
+                summary: {
+                    todayCheckedOut: summaryResults[0].today_checked_out || 0,
+                    weekCheckedOut: summaryResults[0].week_checked_out || 0,
+                    monthCheckedOut: summaryResults[0].month_checked_out || 0,
+                    pendingCount: summaryResults[0].pending_count || 0,
+                    completedCount: summaryResults[0].completed_count || 0
+                },
+                records: recordResults
+            });
+        });
+    });
+});
+
 router.post('/checkout/:id', (req, res) => {
     db.query('UPDATE attendance_logs SET check_out = CURRENT_TIMESTAMP WHERE id = ?',
         [req.params.id],

@@ -44,6 +44,59 @@ const EMPTY_STATS = {
 
 const chartPalette = ['#6f1020', '#9b2940', '#c56b7b', '#d4a24c', '#8d6e63', '#dec7a3'];
 const YEAR_LEVELS = [1, 2, 3, 4];
+const TRACKER_FILTER_DEFAULTS = {
+  period: 'today',
+  status: 'all'
+};
+const EMPTY_TRACKER_SUMMARY = {
+  todayCheckedOut: 0,
+  weekCheckedOut: 0,
+  monthCheckedOut: 0,
+  pendingCount: 0,
+  completedCount: 0
+};
+const TRACKER_PERIOD_OPTIONS = [
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+  { value: 'all', label: 'All Activity' }
+];
+const TRACKER_STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'completed', label: 'Completed' }
+];
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return 'Still inside library';
+  }
+
+  return new Date(value).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+};
+
+const formatDuration = (minutes) => {
+  const totalMinutes = Number(minutes);
+
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) {
+    return 'N/A';
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
+  return `${remainingMinutes}m`;
+};
 
 const formatYearLabel = (yearLevel) => {
   const numericYear = Number(yearLevel);
@@ -78,6 +131,11 @@ function Dashboard() {
     section: 'All',
     sort: 'az'
   });
+  const [trackerFilters, setTrackerFilters] = useState(TRACKER_FILTER_DEFAULTS);
+  const [trackerSummary, setTrackerSummary] = useState(EMPTY_TRACKER_SUMMARY);
+  const [trackerRecords, setTrackerRecords] = useState([]);
+  const [isLoadingTracker, setIsLoadingTracker] = useState(true);
+  const [trackerMessage, setTrackerMessage] = useState('');
 
   const fetchStats = async () => {
     try {
@@ -104,14 +162,36 @@ function Dashboard() {
     }
   };
 
-  const loadDashboardData = async () => {
+  const fetchCheckoutTracker = async (filters = trackerFilters) => {
+    try {
+      setIsLoadingTracker(true);
+      setTrackerMessage('');
+      const response = await attendanceApi.getTracker(filters);
+      setTrackerSummary(response.data.summary || EMPTY_TRACKER_SUMMARY);
+      setTrackerRecords(response.data.records || []);
+    } catch (error) {
+      console.error('Error fetching tracker:', error);
+      setTrackerSummary(EMPTY_TRACKER_SUMMARY);
+      setTrackerRecords([]);
+      setTrackerMessage(error.response?.data?.error || 'Unable to load the checkout tracker right now.');
+    } finally {
+      setIsLoadingTracker(false);
+    }
+  };
+
+  const loadCoreDashboardData = async () => {
     await Promise.all([fetchStats(), fetchStudents()]);
   };
 
   useEffect(() => {
-    loadDashboardData();
+    loadCoreDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetchCheckoutTracker(trackerFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackerFilters.period, trackerFilters.status]);
 
   const refreshStudentProfile = async (studentId) => {
     try {
@@ -184,7 +264,7 @@ function Dashboard() {
       setManagementMessage(`Updated ${updatedStudent.first_name} ${updatedStudent.last_name} successfully.`);
       setEditingStudent(null);
 
-      await Promise.all([fetchStudents(), fetchStats()]);
+      await Promise.all([fetchStudents(), fetchStats(), fetchCheckoutTracker(trackerFilters)]);
 
       if (studentProfile?.student?.student_id === currentStudentId) {
         await refreshStudentProfile(updatedStudent.student_id);
@@ -220,7 +300,7 @@ function Dashboard() {
         setStudentProfile(null);
       }
 
-      await Promise.all([fetchStudents(), fetchStats()]);
+      await Promise.all([fetchStudents(), fetchStats(), fetchCheckoutTracker(trackerFilters)]);
     } catch (error) {
       console.error('Delete error:', error);
       const errorMessage = error.response?.data?.error || 'Unable to delete this student right now.';
@@ -280,7 +360,7 @@ function Dashboard() {
       );
 
       if (successfulRows > 0) {
-        loadDashboardData();
+        await Promise.all([fetchStudents(), fetchStats(), fetchCheckoutTracker(trackerFilters)]);
       }
     } catch (error) {
       console.error('Import error:', error);
@@ -420,6 +500,8 @@ function Dashboard() {
   const topCourse = courseData[0];
   const todayVisits = dailyData[dailyData.length - 1]?.visits || 0;
   const completedVisits = Math.max(stats.totalVisits - stats.activeVisitors, 0);
+  const trackerPeriodLabel = TRACKER_PERIOD_OPTIONS.find((option) => option.value === trackerFilters.period)?.label || 'Today';
+  const trackerStatusLabel = TRACKER_STATUS_OPTIONS.find((option) => option.value === trackerFilters.status)?.label || 'All';
   const purposeColors = purposeData.map((_, index) => chartPalette[index % chartPalette.length]);
   const courseColors = courseData.map((_, index) => chartPalette[index % chartPalette.length]);
   const allCourses = Array.from(new Set(students.map((student) => student.course).filter(Boolean))).sort();
@@ -651,6 +733,12 @@ function Dashboard() {
         </div>
       )}
 
+      {trackerMessage && (
+        <div className="alert alert-warning mb-3">
+          {trackerMessage}
+        </div>
+      )}
+
       <section className="dashboard-command-bar">
         <div className="dashboard-command-copy">
           <p className="dashboard-kicker">Library Control Center</p>
@@ -739,6 +827,134 @@ function Dashboard() {
               <small>Review open records</small>
             </Link>
           </div>
+        </div>
+      </section>
+
+      <section className="dashboard-panel dashboard-tracker-panel">
+        <div className="dashboard-panel-header dashboard-panel-header-spread">
+          <div>
+            <h3>Check-Out Tracker</h3>
+            <p className="dashboard-subcopy mb-0">
+              Track students who have completed check-out today, this week, this month, or are still pending inside the library.
+            </p>
+          </div>
+          <div className="dashboard-directory-summary">
+            <span>Records shown</span>
+            <strong>{isLoadingTracker ? '...' : trackerRecords.length}</strong>
+          </div>
+        </div>
+
+        <div className="dashboard-tracker-toolbar">
+          <div className="dashboard-filter-cluster">
+            <span className="dashboard-filter-label">Period</span>
+            <div className="dashboard-filter-chips">
+              {TRACKER_PERIOD_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`dashboard-filter-chip${trackerFilters.period === option.value ? ' active' : ''}`}
+                  onClick={() => setTrackerFilters((current) => ({ ...current, period: option.value }))}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="dashboard-filter-cluster">
+            <span className="dashboard-filter-label">Status</span>
+            <div className="dashboard-filter-chips">
+              {TRACKER_STATUS_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`dashboard-filter-chip${trackerFilters.status === option.value ? ' active' : ''}`}
+                  onClick={() => setTrackerFilters((current) => ({ ...current, status: option.value }))}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="dashboard-tracker-summary-grid">
+          <div className="metric-slab dashboard-tracker-slab">
+            <span>Checked Out Today</span>
+            <strong>{isLoadingTracker ? '...' : trackerSummary.todayCheckedOut}</strong>
+            <small>Completed attendance records closed today.</small>
+          </div>
+          <div className="metric-slab dashboard-tracker-slab">
+            <span>Checked Out This Week</span>
+            <strong>{isLoadingTracker ? '...' : trackerSummary.weekCheckedOut}</strong>
+            <small>Completed records closed during the current week.</small>
+          </div>
+          <div className="metric-slab dashboard-tracker-slab">
+            <span>Checked Out This Month</span>
+            <strong>{isLoadingTracker ? '...' : trackerSummary.monthCheckedOut}</strong>
+            <small>Completed records closed during the current month.</small>
+          </div>
+          <div className="metric-slab dashboard-tracker-slab">
+            <span>Pending Now</span>
+            <strong>{isLoadingTracker ? '...' : trackerSummary.pendingCount}</strong>
+            <small>Students who are still inside the library right now.</small>
+          </div>
+          <div className="metric-slab dashboard-tracker-slab">
+            <span>Completed Total</span>
+            <strong>{isLoadingTracker ? '...' : trackerSummary.completedCount}</strong>
+            <small>Attendance sessions that already reached check-out.</small>
+          </div>
+        </div>
+
+        <div className="dashboard-tracker-note">
+          <div>
+            <strong>{trackerPeriodLabel} / {trackerStatusLabel}</strong>
+            <small>Completed records follow check-out time. Pending records stay open until the student checks out.</small>
+          </div>
+        </div>
+
+        <div className="table-responsive dashboard-tracker-table-wrap">
+          {isLoadingTracker ? (
+            <p className="dashboard-empty-copy">Loading checkout tracker...</p>
+          ) : trackerRecords.length > 0 ? (
+            <table className="table align-middle dashboard-table mb-0">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Program</th>
+                  <th>Purpose</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Status</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trackerRecords.map((record) => (
+                  <tr key={record.id}>
+                    <td>
+                      <div className="dashboard-tracker-student">
+                        <strong>{`${record.first_name} ${record.last_name}`}</strong>
+                        <small>{record.student_id}</small>
+                      </div>
+                    </td>
+                    <td>{`${record.course || 'N/A'} / ${record.year_level ? formatYearLabel(record.year_level) : 'Year N/A'} / ${record.section ? `Section ${record.section}` : 'Section N/A'}`}</td>
+                    <td>{record.purpose}</td>
+                    <td>{formatDateTime(record.check_in)}</td>
+                    <td>{formatDateTime(record.check_out)}</td>
+                    <td>
+                      <span className={`status-pill ${record.status === 'Completed' ? 'status-complete' : 'status-pending'}`}>
+                        {record.status}
+                      </span>
+                    </td>
+                    <td>{`${formatDuration(record.duration_minutes)}${record.status === 'Pending' ? ' elapsed' : ''}`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="dashboard-empty-copy">No student records match the current checkout tracker filters.</p>
+          )}
         </div>
       </section>
 

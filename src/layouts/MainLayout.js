@@ -2,6 +2,23 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 
+const footerPages = [
+  {
+    href: 'https://web.facebook.com/GoaCommunityCollege',
+    label: 'GCC Facebook Page',
+    description: 'Official Goa Community College page',
+    logo: '/GCC-LOGO.png',
+    alt: 'Goa Community College logo'
+  },
+  {
+    href: 'https://web.facebook.com/gcccollegelibrary',
+    label: 'GCC Library Page',
+    description: 'Official GCC Library page',
+    logo: '/gcc-library.png',
+    alt: 'Goa Community College Library logo'
+  }
+];
+
 const pageMeta = {
   '/': {
     title: 'Dashboard',
@@ -55,8 +72,31 @@ function MainLayout() {
         </main>
 
         <footer className="admin-footer">
-          <p className="mb-1">Goa Community College Library Attendance Management System</p>
-          <small>Designed for attendance tracking, student lookup, and dashboard reporting.</small>
+          <div className="admin-footer-copy">
+            <p className="mb-1">Goa Community College Library Attendance Management System</p>
+            <small>Designed for attendance tracking, student lookup, and dashboard reporting.</small>
+          </div>
+          <div className="admin-footer-links" aria-label="Official GCC pages">
+            {footerPages.map((page) => (
+              <a
+                key={page.href}
+                className="admin-footer-link"
+                href={page.href}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <img
+                  src={page.logo}
+                  alt={page.alt}
+                  className="admin-footer-link-logo"
+                />
+                <span className="admin-footer-link-copy">
+                  <strong>{page.label}</strong>
+                  <small>{page.description}</small>
+                </span>
+              </a>
+            ))}
+          </div>
         </footer>
       </div>
     </div>

@@ -53,11 +53,6 @@ function Navbar() {
           </div>
         ))}
       </div>
-
-      <div className="sidebar-footer-note">
-        <strong>Library Operations</strong>
-        <p className="mb-0">Monitor student visits, registration status, and attendance analytics in one place.</p>
-      </div>
     </aside>
   );
 }
