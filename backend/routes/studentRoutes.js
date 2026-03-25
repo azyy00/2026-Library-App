@@ -3,6 +3,7 @@ const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const db = require('../config/db');
+const { getSqlDateTimeInManila } = require('../config/manilaTime');
 const {
   ensureLocalUploadDir,
   removeStoredProfileImage,
@@ -25,9 +26,8 @@ const runQuery = (query, values = []) =>
     });
   });
 
-const storage = usesCloudinaryStorage()
-  ? multer.memoryStorage()
-  : multer.diskStorage({
+const storage = usesLocalStorage()
+  ? multer.diskStorage({
       destination(req, file, cb) {
         cb(null, ensureLocalUploadDir());
       },
@@ -35,7 +35,8 @@ const storage = usesCloudinaryStorage()
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         cb(null, `profile-${uniqueSuffix}${path.extname(file.originalname)}`);
       }
-    });
+    })
+  : multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -59,7 +60,7 @@ const upload = multer({
 router.get('/test', (req, res) => {
   res.json({
     message: 'Student routes are working!',
-    storage: usesCloudinaryStorage() ? 'cloudinary' : 'local'
+    storage: usesCloudinaryStorage() ? 'cloudinary' : usesLocalStorage() ? 'local' : 'memory-only'
   });
 });
 
@@ -85,19 +86,24 @@ router.get('/profile/:student_id', async (req, res) => {
     }
 
     const student = studentResults[0];
+    const currentManilaTime = getSqlDateTimeInManila();
     const activitiesQuery = `
-      SELECT al.*, 
+      SELECT
+             al.id,
+             al.purpose,
+             DATE_FORMAT(al.check_in, '%Y-%m-%d %H:%i:%s') AS check_in,
+             DATE_FORMAT(al.check_out, '%Y-%m-%d %H:%i:%s') AS check_out,
              CASE 
                WHEN al.check_out IS NULL THEN 'Currently Active'
                ELSE CONCAT('Checked out at ', DATE_FORMAT(al.check_out, '%Y-%m-%d %H:%i:%s'))
              END as status,
-             TIMESTAMPDIFF(MINUTE, al.check_in, COALESCE(al.check_out, NOW())) as duration_minutes
+             GREATEST(TIMESTAMPDIFF(MINUTE, al.check_in, COALESCE(al.check_out, ?)), 0) as duration_minutes
       FROM attendance_logs al
       WHERE al.student_id = ?
       ORDER BY al.check_in DESC
       LIMIT 20
     `;
-    const activitiesResults = await runQuery(activitiesQuery, [student.id]);
+    const activitiesResults = await runQuery(activitiesQuery, [currentManilaTime, student.id]);
     const countResults = await runQuery(
       'SELECT COUNT(*) as total_visits FROM attendance_logs WHERE student_id = ?',
       [student.id]

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { useAuth } from '../context/AuthContext';
+import { buildAssetUrl } from '../services/api';
 
 const footerPages = [
   {
@@ -35,12 +37,18 @@ const pageMeta = {
   '/register': {
     title: 'Student Registration',
     subtitle: 'Create or update student records before attendance starts.'
+  },
+  '/admin-profile': {
+    title: 'Admin Profile',
+    subtitle: 'Review your account details and update username, password, and administrator information.'
   }
 };
 
 function MainLayout() {
   const location = useLocation();
+  const { employee } = useAuth();
   const activePage = pageMeta[location.pathname] || pageMeta['/'];
+  const profileImageUrl = buildAssetUrl(employee?.profileImage);
   const currentDate = new Date().toLocaleDateString([], {
     weekday: 'long',
     month: 'long',
@@ -62,8 +70,25 @@ function MainLayout() {
 
           <div className="admin-topbar-actions">
             <div className="topbar-chip">{currentDate}</div>
-            <div className="topbar-chip">Live Workspace</div>
-            <div className="topbar-avatar">GC</div>
+            <div className="topbar-chip">{employee?.title || 'Employee Workspace'}</div>
+            <div className="topbar-chip topbar-chip-employee">{employee?.name || employee?.username}</div>
+            <div className="topbar-avatar">
+              {profileImageUrl ? (
+                <img
+                  src={profileImageUrl}
+                  alt={employee?.name || employee?.username || 'Administrator'}
+                  className="topbar-avatar-image"
+                />
+              ) : (
+                `${employee?.name || employee?.username || 'GC'}`
+                  .split(' ')
+                  .filter(Boolean)
+                  .map((part) => part[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
+              )}
+            </div>
           </div>
         </header>
 
@@ -75,6 +100,7 @@ function MainLayout() {
           <div className="admin-footer-copy">
             <p className="mb-1">Goa Community College Library Attendance Management System</p>
             <small>Designed for attendance tracking, student lookup, and dashboard reporting.</small>
+            <small className="admin-footer-credit">Anthony B. Azuela</small>
           </div>
           <div className="admin-footer-links" aria-label="Official GCC pages">
             {footerPages.map((page) => (

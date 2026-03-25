@@ -20,7 +20,7 @@ const PURPOSE_OPTIONS = [
     description: 'Book release, return, and shelf assistance.'
   },
   {
-    value: 'Used Computer',
+    value: 'Computer/Internet',
     shortLabel: 'Computer Use',
     description: 'Computer access for school-related tasks.'
   },

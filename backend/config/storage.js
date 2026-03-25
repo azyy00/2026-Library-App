@@ -15,6 +15,8 @@ const hasCloudinaryCredentials = () => (
   && Boolean(process.env.CLOUDINARY_API_SECRET)
 );
 
+const isVercelRuntime = () => ['1', 'true'].includes(`${process.env.VERCEL || ''}`.trim().toLowerCase());
+
 const getStorageMode = () => {
   const preferredMode = `${process.env.FILE_STORAGE || ''}`.trim().toLowerCase();
 
@@ -30,7 +32,7 @@ const getStorageMode = () => {
 };
 
 const usesCloudinaryStorage = () => getStorageMode() === 'cloudinary';
-const usesLocalStorage = () => getStorageMode() === 'local';
+const usesLocalStorage = () => getStorageMode() === 'local' && !isVercelRuntime();
 
 const ensureLocalUploadDir = () => {
   if (!fs.existsSync(PROFILE_UPLOAD_DIR)) {
@@ -186,6 +188,10 @@ const storeUploadedProfileImage = async (file) => {
     return uploadToCloudinary(file);
   }
 
+  if (isVercelRuntime()) {
+    throw new Error('Profile image uploads on Vercel require Cloudinary credentials because the filesystem is temporary.');
+  }
+
   return getLocalProfileImagePath(file.filename);
 };
 
@@ -205,6 +211,7 @@ const removeStoredProfileImage = async (storedPath) => {
 module.exports = {
   ensureLocalUploadDir,
   getStorageMode,
+  isVercelRuntime,
   removeStoredProfileImage,
   storeUploadedProfileImage,
   usesCloudinaryStorage,

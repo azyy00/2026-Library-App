@@ -78,88 +78,120 @@ npm run dev
 
 This will start both servers using concurrently.
 
-## Frontend Deployment On Vercel
+## Deploy To Vercel
 
-Use this option when the frontend should be hosted on Vercel while the backend stays on a separate Node host.
+This project is easiest to deploy on Vercel as **two Vercel projects**:
 
-### Requirements
-- A public backend URL, for example `https://your-backend-domain.example`
-- The backend must expose the API under `/api`
-- The backend must allow requests from your Vercel frontend domain
+1. A frontend project from the repository root
+2. A backend project from the `backend` folder
 
-### Vercel Settings
+That matches the codebase structure today: React handles the UI and Express handles the API and MySQL access.
 
-1. Import this project into Vercel
-2. Set the project root to the repository root:
-   ```text
-   library-app-main
-   ```
-3. Confirm these build settings:
+### Why two Vercel projects?
+
+- The frontend is a Create React App build that outputs static files
+- The backend is an Express API that runs as a Vercel Function
+- Student profile images should use Cloudinary in production because Vercel does not provide permanent local file storage for uploads
+
+### Fastest database option
+
+For the least setup work, use a **MySQL-compatible online database** instead of rewriting the backend.
+
+- Recommended: **TiDB Cloud Serverless**
+- Why: it is MySQL-compatible and has a native Vercel Marketplace integration
+- The backend already accepts either the existing `DB_*` variables or TiDB's `TIDB_*` variables
+
+### Frontend Vercel project
+
+1. Import the repository into Vercel
+2. Set the **Root Directory** to the repository root
+3. Confirm these settings:
    ```text
    Framework Preset: Create React App
    Build Command: npm run build
    Output Directory: build
    Node.js Version: 20.x
    ```
-4. Add this environment variable in Vercel:
+4. Add this environment variable:
    ```text
-   REACT_APP_API_URL=https://your-backend-domain.example/api
+   REACT_APP_API_URL=https://your-backend-project.vercel.app/api
    ```
-5. Deploy the project
+5. Deploy
 
-### Notes
-- `vercel.json` includes a rewrite so React Router routes like `/attendance` and `/active` work on refresh
-- Uploaded student profile images are still served from the backend host, not Vercel
-- The sample value is also available in `.env.example`
+### Frontend notes
 
-## Backend Deployment Online
+- The root `vercel.json` rewrites all non-file routes to `index.html`, so React Router pages like `/attendance` and `/active` still load on refresh
+- The sample frontend API URL is also in `.env.example`
 
-Use this option when the Express backend should run on a public Node host such as Koyeb or Render.
+### Backend Vercel project
 
-### Recommended stack
-- Backend host: Koyeb free service
-- Database: Aiven for MySQL free tier
-- Image hosting: Cloudinary free plan
+1. Create a second Vercel project from the same repository
+2. Set the **Root Directory** to:
+   ```text
+   backend
+   ```
+3. Confirm these settings:
+   ```text
+   Framework Preset: Other
+   Install Command: npm install
+   Build Command: leave empty
+   Output Directory: leave empty
+   Node.js Version: 20.x
+   ```
+4. Add these environment variables in Vercel:
+   ```env
+   CLIENT_ORIGIN=https://your-frontend-project.vercel.app
 
-### Backend environment variables
+   DB_HOST=your-mysql-host
+   DB_PORT=25060
+   DB_USER=your-mysql-user
+   DB_PASSWORD=your-mysql-password
+   DB_NAME=defaultdb
+   DB_SSL=true
+   DB_SSL_REJECT_UNAUTHORIZED=false
+   DB_CONNECTION_LIMIT=10
 
-Copy `backend/.env.example` into your host dashboard and update the values:
+   FILE_STORAGE=cloudinary
+   CLOUDINARY_CLOUD_NAME=your-cloud-name
+   CLOUDINARY_API_KEY=your-api-key
+   CLOUDINARY_API_SECRET=your-api-secret
+   CLOUDINARY_FOLDER=library-app/profiles
+   ```
+5. Deploy
+
+### TiDB Cloud shortcut
+
+If you use **TiDB Cloud for Vercel**, Vercel can inject these variables for you:
 
 ```env
-PORT=8000
-CLIENT_ORIGIN=https://your-frontend-domain.vercel.app
-
-DB_HOST=your-mysql-host
-DB_PORT=25060
-DB_USER=your-mysql-user
-DB_PASSWORD=your-mysql-password
-DB_NAME=defaultdb
-DB_SSL=true
-DB_SSL_REJECT_UNAUTHORIZED=false
-
-FILE_STORAGE=cloudinary
-CLOUDINARY_CLOUD_NAME=your-cloud-name
-CLOUDINARY_API_KEY=your-api-key
-CLOUDINARY_API_SECRET=your-api-secret
-CLOUDINARY_FOLDER=library-app/profiles
+TIDB_HOST=your-host
+TIDB_PORT=4000
+TIDB_USER=your-user
+TIDB_PASSWORD=your-password
+TIDB_DATABASE=your-database
 ```
 
-### Important deployment notes
+For TiDB Cloud public endpoints, keep TLS enabled:
 
-- The backend now reads the port from `PORT`, so cloud hosts can assign their own port automatically
-- Database credentials are read from environment variables instead of hardcoded local values
-- Student profile images can use Cloudinary in production, which avoids data loss from temporary server filesystems
-- If `FILE_STORAGE=local`, images are still stored under `backend/uploads/profiles` for local development
-- A `backend/Dockerfile` is included if your host prefers Docker-based deployment
+```env
+TIDB_ENABLE_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=true
+```
+
+### Backend notes
+
+- `backend/vercel.json` rewrites incoming requests to the Vercel Function entry at `backend/api/index.js`
+- `backend/server.js` now exports the Express app for Vercel and only starts `app.listen(...)` during local development
+- The attendance cutoff interval scheduler is not started on Vercel, but the same auto-checkout sweep still runs before every `/api` request
+- If Cloudinary credentials are missing on Vercel, profile image uploads will return a clear error instead of trying to write to a temporary filesystem
 
 ### Suggested deployment flow
 
-1. Create a MySQL database online and import `database/schema-managed.sql`
+1. Create an online MySQL database and import `database/schema-managed.sql`
 2. Create a Cloudinary account for student profile images
-3. Deploy the `backend` folder to a Node host
-4. Add all backend environment variables in the host dashboard
-5. Update the frontend `REACT_APP_API_URL` to your deployed backend URL plus `/api`
-6. Redeploy the frontend
+3. Deploy the backend Vercel project from `backend`
+4. Copy the backend deployment URL and set it as `REACT_APP_API_URL` in the frontend project
+5. Deploy or redeploy the frontend Vercel project
 
 ## Features
 
@@ -200,7 +232,8 @@ CLOUDINARY_FOLDER=library-app/profiles
    - Change ports in respective configuration files if needed
 
 3. **CORS Issues**
-   - Backend has CORS enabled for all origins
+   - Set `CLIENT_ORIGIN` to your frontend Vercel URL
+   - You can also provide multiple origins separated by commas
    - If issues persist, check browser console for errors
 
 ### Testing the System

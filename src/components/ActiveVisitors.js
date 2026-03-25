@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import StudentProfile from './StudentProfile';
 import { attendanceApi, buildAssetUrl, studentApi } from '../services/api';
 
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
 const formatDuration = (minutes) => {
-  const safeMinutes = Number(minutes) || 0;
+  const safeMinutes = Math.max(Number(minutes) || 0, 0);
 
   if (safeMinutes < 60) {
     return `${safeMinutes} min`;
@@ -25,6 +27,7 @@ const formatDateTime = (value) => {
   }
 
   return new Date(value).toLocaleString([], {
+    timeZone: MANILA_TIME_ZONE,
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -54,7 +57,11 @@ function ActiveVisitors() {
     try {
       const response = await attendanceApi.getActive();
       setActiveVisitors(response.data);
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastUpdated(new Date().toLocaleTimeString([], {
+        timeZone: MANILA_TIME_ZONE,
+        hour: '2-digit',
+        minute: '2-digit'
+      }));
       setMessage(null);
     } catch (error) {
       console.error('Error fetching active visitors:', error);

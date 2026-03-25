@@ -66,19 +66,69 @@ const TRACKER_STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'completed', label: 'Completed' }
 ];
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const formatDateTime = (value) => {
+const parseAttendanceDateTime = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const stringValue = `${value}`.trim();
+  const sqlMatch = stringValue.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+
+  if (sqlMatch) {
+    return {
+      year: Number(sqlMatch[1]),
+      month: Number(sqlMatch[2]),
+      day: Number(sqlMatch[3]),
+      hour: Number(sqlMatch[4]),
+      minute: Number(sqlMatch[5])
+    };
+  }
+
+  const parsedDate = new Date(stringValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  return {
+    year: parsedDate.getFullYear(),
+    month: parsedDate.getMonth() + 1,
+    day: parsedDate.getDate(),
+    hour: parsedDate.getHours(),
+    minute: parsedDate.getMinutes()
+  };
+};
+
+const formatDateTime = (value, compareValue) => {
   if (!value) {
     return 'Still inside library';
   }
 
-  return new Date(value).toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  });
+  const parsedValue = parseAttendanceDateTime(value);
+
+  if (!parsedValue) {
+    return `${value}`;
+  }
+
+  const suffix = parsedValue.hour >= 12 ? 'PM' : 'AM';
+  const displayHour = parsedValue.hour % 12 || 12;
+  const formattedValue = `${MONTH_LABELS[parsedValue.month - 1]} ${parsedValue.day}, ${parsedValue.year}, ${displayHour}:${`${parsedValue.minute}`.padStart(2, '0')} ${suffix}`;
+  const parsedCompareValue = compareValue ? parseAttendanceDateTime(compareValue) : null;
+
+  if (
+    parsedCompareValue
+    && (
+      parsedValue.year !== parsedCompareValue.year
+      || parsedValue.month !== parsedCompareValue.month
+      || parsedValue.day !== parsedCompareValue.day
+    )
+  ) {
+    return `${formattedValue} (next day)`;
+  }
+
+  return formattedValue;
 };
 
 const formatDuration = (minutes) => {
@@ -98,6 +148,25 @@ const formatDuration = (minutes) => {
   return `${remainingMinutes}m`;
 };
 
+const formatExportDateTime = (value) => {
+  if (!value) {
+    return 'Still inside library';
+  }
+
+  const parsedValue = parseAttendanceDateTime(value);
+
+  if (!parsedValue) {
+    return `${value}`;
+  }
+
+  const month = `${parsedValue.month}`.padStart(2, '0');
+  const day = `${parsedValue.day}`.padStart(2, '0');
+  const suffix = parsedValue.hour >= 12 ? 'PM' : 'AM';
+  const displayHour = parsedValue.hour % 12 || 12;
+
+  return `${month}/${day}/${parsedValue.year} ${displayHour}:${`${parsedValue.minute}`.padStart(2, '0')} ${suffix}`;
+};
+
 const formatYearLabel = (yearLevel) => {
   const numericYear = Number(yearLevel);
 
@@ -106,6 +175,117 @@ const formatYearLabel = (yearLevel) => {
   if (numericYear === 3) return '3rd Year';
   if (numericYear === 4) return '4th Year';
   return `Year ${yearLevel}`;
+};
+
+const buildReportWorksheet = (activities, summaryRows) => {
+  const headers = [
+    'Student ID',
+    'First Name',
+    'Last Name',
+    'Course',
+    'Year Level',
+    'Section',
+    'Purpose',
+    'Time In',
+    'Time Out',
+    'Status',
+    'Duration'
+  ];
+  const exportRows = activities.map((activity) => ([
+    activity.student_id || 'N/A',
+    activity.first_name || '',
+    activity.last_name || '',
+    activity.course || 'N/A',
+    activity.year_level ? formatYearLabel(activity.year_level) : 'N/A',
+    activity.section || 'N/A',
+    activity.purpose || 'N/A',
+    formatExportDateTime(activity.check_in),
+    formatExportDateTime(activity.check_out),
+    activity.status || 'N/A',
+    activity.duration_minutes == null ? 'In progress' : formatDuration(activity.duration_minutes)
+  ]));
+  const rows = [
+    ['GCC LIBRARY REPORTS'],
+    ['Student attendance activity export'],
+    [`Generated ${formatExportDateTime(new Date().toISOString())}`],
+    [],
+    headers,
+    ...exportRows
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  const lastColumnIndex = headers.length - 1;
+
+  worksheet['!cols'] = [
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 14 },
+    { wch: 14 }
+  ];
+  worksheet['!rows'] = [
+    { hpt: 28 },
+    { hpt: 20 },
+    { hpt: 18 },
+    { hpt: 8 },
+    { hpt: 20 }
+  ];
+  worksheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: lastColumnIndex } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: lastColumnIndex } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: lastColumnIndex } }
+  ];
+  worksheet['!autofilter'] = {
+    ref: XLSX.utils.encode_range({
+      s: { r: 4, c: 0 },
+      e: { r: Math.max(exportRows.length + 4, 4), c: lastColumnIndex }
+    })
+  };
+
+  const summarySheet = XLSX.utils.aoa_to_sheet([
+    ['GCC LIBRARY REPORTS'],
+    ['Summary'],
+    [],
+    ['Metric', 'Value'],
+    ...summaryRows.map((item) => [item.Metric, item.Value])
+  ]);
+
+  summarySheet['!cols'] = [{ wch: 24 }, { wch: 28 }];
+  summarySheet['!rows'] = [{ hpt: 28 }, { hpt: 20 }];
+  summarySheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }
+  ];
+
+  return { worksheet, summarySheet };
+};
+
+const drawRoundedRect = (context, x, y, width, height, radius, fillStyle, strokeStyle) => {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.lineTo(x + width - radius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + radius);
+  context.lineTo(x + width, y + height - radius);
+  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  context.lineTo(x + radius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - radius);
+  context.lineTo(x, y + radius);
+  context.quadraticCurveTo(x, y, x + radius, y);
+  context.closePath();
+
+  context.fillStyle = fillStyle;
+  context.fill();
+
+  if (strokeStyle) {
+    context.strokeStyle = strokeStyle;
+    context.lineWidth = 1;
+    context.stroke();
+  }
 };
 
 function Dashboard() {
@@ -376,17 +556,15 @@ function Dashboard() {
       const response = await attendanceApi.exportReport();
       const data = response.data;
       const workbook = XLSX.utils.book_new();
+      const summaryRows = [
+        { Metric: 'Total Visits', Value: data.totalVisits },
+        { Metric: 'Active Visitors', Value: data.activeVisitors },
+        { Metric: 'Export Date', Value: formatExportDateTime(new Date().toISOString()) }
+      ];
+      const { worksheet, summarySheet } = buildReportWorksheet(data.activities || [], summaryRows);
 
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data.activities), 'Student Activities');
-      XLSX.utils.book_append_sheet(
-        workbook,
-        XLSX.utils.json_to_sheet([
-          { Metric: 'Total Visits', Value: data.totalVisits },
-          { Metric: 'Active Visitors', Value: data.activeVisitors },
-          { Metric: 'Export Date', Value: new Date().toLocaleString() }
-        ]),
-        'Statistics'
-      );
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Library Reports');
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
       const workbookOutput = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([workbookOutput], { type: 'application/octet-stream' });
@@ -400,35 +578,71 @@ function Dashboard() {
   const exportCharts = () => {
     try {
       setTimeout(() => {
-        const chartCanvases = document.querySelectorAll('canvas');
+        const chartPanels = Array.from(document.querySelectorAll('.dashboard-panel'))
+          .map((panel) => ({
+            title: panel.querySelector('.dashboard-panel-header h3')?.textContent?.trim() || 'Dashboard Chart',
+            canvas: panel.querySelector('canvas')
+          }))
+          .filter((entry) => entry.canvas && entry.canvas.width > 0 && entry.canvas.height > 0);
 
-        if (chartCanvases.length === 0) {
+        if (chartPanels.length === 0) {
           setImportMessage('No charts are available yet. Wait for the dashboard to finish loading.');
           return;
         }
 
         const combinedCanvas = document.createElement('canvas');
         const context = combinedCanvas.getContext('2d');
-        const chartWidth = 1280;
-        const chartHeight = 420;
-        const spacing = 26;
-        const totalHeight = 90 + chartCanvases.length * (chartHeight + spacing);
+        const exportWidth = 980;
+        const pagePadding = 30;
+        const cardGap = 20;
+        const columns = 2;
+        const headerHeight = 84;
+        const cardWidth = (exportWidth - (pagePadding * 2) - cardGap) / columns;
+        const chartAreaHeight = 230;
+        const cardHeight = chartAreaHeight + 72;
+        const rowCount = Math.ceil(chartPanels.length / columns);
+        const totalHeight = headerHeight + pagePadding + (rowCount * cardHeight) + ((rowCount - 1) * cardGap) + pagePadding;
 
-        combinedCanvas.width = chartWidth;
+        combinedCanvas.width = exportWidth;
         combinedCanvas.height = totalHeight;
 
-        context.fillStyle = '#f6f7fb';
-        context.fillRect(0, 0, chartWidth, totalHeight);
-        context.fillStyle = '#111827';
-        context.font = 'bold 28px Arial';
-        context.textAlign = 'center';
-        context.fillText('Goa Community College Library Dashboard', chartWidth / 2, 40);
-        context.font = '16px Arial';
-        context.fillText(`Exported ${new Date().toLocaleString()}`, chartWidth / 2, 66);
+        context.fillStyle = '#f8f4ef';
+        context.fillRect(0, 0, exportWidth, totalHeight);
+        context.fillStyle = '#6f1020';
+        context.font = '700 28px Georgia';
+        context.textAlign = 'left';
+        context.fillText('GCC Library Dashboard Charts', pagePadding, 40);
+        context.fillStyle = '#7b5560';
+        context.font = '15px Arial';
+        context.fillText(`Exported ${new Date().toLocaleString()}`, pagePadding, 64);
 
-        chartCanvases.forEach((canvas, index) => {
-          const offsetY = 90 + index * (chartHeight + spacing);
-          context.drawImage(canvas, 0, offsetY, chartWidth, chartHeight);
+        chartPanels.forEach((entry, index) => {
+          const row = Math.floor(index / columns);
+          const column = index % columns;
+          const cardX = pagePadding + (column * (cardWidth + cardGap));
+          const cardY = headerHeight + (row * (cardHeight + cardGap));
+          const innerX = cardX + 18;
+          const innerY = cardY + 54;
+          const innerWidth = cardWidth - 36;
+          const innerHeight = chartAreaHeight;
+          const scale = Math.min(innerWidth / entry.canvas.width, innerHeight / entry.canvas.height);
+          const drawWidth = entry.canvas.width * scale;
+          const drawHeight = entry.canvas.height * scale;
+          const drawX = innerX + ((innerWidth - drawWidth) / 2);
+          const drawY = innerY + ((innerHeight - drawHeight) / 2);
+
+          context.save();
+          context.shadowColor = 'rgba(111, 16, 32, 0.12)';
+          context.shadowBlur = 16;
+          context.shadowOffsetY = 8;
+          drawRoundedRect(context, cardX, cardY, cardWidth, cardHeight, 22, '#fffdfb', '#eadbd2');
+          context.restore();
+
+          context.fillStyle = '#6f1020';
+          context.font = '600 18px Arial';
+          context.textAlign = 'left';
+          context.fillText(entry.title, cardX + 18, cardY + 34);
+          context.drawImage(entry.canvas, drawX, drawY, drawWidth, drawHeight);
         });
 
         const link = document.createElement('a');
@@ -822,6 +1036,11 @@ function Dashboard() {
               <small>Open check-in workspace</small>
             </Link>
 
+            <Link to="/monitoring" className="dashboard-tool-tile dashboard-tool-link">
+              <span>Monitoring kiosk</span>
+              <small>Open student ID scan screen</small>
+            </Link>
+
             <Link to="/active" className="dashboard-tool-tile dashboard-tool-link">
               <span>Active visitors</span>
               <small>Review open records</small>
@@ -909,7 +1128,7 @@ function Dashboard() {
         <div className="dashboard-tracker-note">
           <div>
             <strong>{trackerPeriodLabel} / {trackerStatusLabel}</strong>
-            <small>Completed records follow check-out time. Pending records stay open until the student checks out.</small>
+            <small>Times follow the recorded attendance transaction time. Check-in stays on the student's time in, and check-out stays on the student's actual time out.</small>
           </div>
         </div>
 
@@ -941,7 +1160,7 @@ function Dashboard() {
                     <td>{`${record.course || 'N/A'} / ${record.year_level ? formatYearLabel(record.year_level) : 'Year N/A'} / ${record.section ? `Section ${record.section}` : 'Section N/A'}`}</td>
                     <td>{record.purpose}</td>
                     <td>{formatDateTime(record.check_in)}</td>
-                    <td>{formatDateTime(record.check_out)}</td>
+                    <td>{formatDateTime(record.check_out, record.check_in)}</td>
                     <td>
                       <span className={`status-pill ${record.status === 'Completed' ? 'status-complete' : 'status-pending'}`}>
                         {record.status}

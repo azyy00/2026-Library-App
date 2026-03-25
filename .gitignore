@@ -5,3 +5,5 @@ backend/.env
 backend/.env.local
 backend/uploads/profiles/*
 !backend/uploads/profiles/.gitkeep
+.vercel
+backend-publish-*

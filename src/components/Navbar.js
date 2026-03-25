@@ -1,5 +1,6 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const navGroups = [
   {
@@ -12,6 +13,7 @@ const navGroups = [
     title: 'Library Desk',
     items: [
       { to: '/attendance', label: 'Attendance Desk' },
+      { to: '/monitoring', label: 'Monitoring Kiosk' },
       { to: '/active', label: 'Active Visitors' }
     ]
   },
@@ -20,10 +22,31 @@ const navGroups = [
     items: [
       { to: '/register', label: 'Student Registration' }
     ]
+  },
+  {
+    title: 'Account',
+    items: [
+      { to: '/admin-profile', label: 'Admin Profile' }
+    ]
   }
 ];
 
 function Navbar() {
+  const navigate = useNavigate();
+  const { employee, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <aside className="admin-sidebar">
       <div className="sidebar-brand">
@@ -53,6 +76,24 @@ function Navbar() {
           </div>
         ))}
       </div>
+
+      <div className="sidebar-employee-card">
+        <div>
+          <span>Signed in as</span>
+          <strong>{employee?.name || employee?.username}</strong>
+          <small>{employee?.title || 'Library employee access'}</small>
+          <small className="sidebar-employee-username">@{employee?.username || 'library-admin'}</small>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="btn btn-outline-maroon sidebar-logout-button"
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+      >
+        {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+      </button>
     </aside>
   );
 }

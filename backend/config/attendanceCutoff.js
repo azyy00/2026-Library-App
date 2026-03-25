@@ -1,18 +1,19 @@
 const db = require('./db');
+const { getManilaClock, getSqlDateTimeInManila } = require('./manilaTime');
 
 const CUTOFF_HOUR = 17;
 const CUTOFF_MINUTE = 0;
 const CUTOFF_LABEL = '5:00 PM';
 
 const isAfterCutoff = (date = new Date()) => {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
+  const { hour: hours, minute: minutes } = getManilaClock(date);
 
   return hours > CUTOFF_HOUR || (hours === CUTOFF_HOUR && minutes >= CUTOFF_MINUTE);
 };
 
 const autoCheckoutExpiredSessions = () =>
   new Promise((resolve, reject) => {
+    const currentManilaTime = getSqlDateTimeInManila();
     const query = `
       UPDATE attendance_logs
       SET check_out = CASE
@@ -20,10 +21,10 @@ const autoCheckoutExpiredSessions = () =>
         ELSE DATE_ADD(DATE(check_in), INTERVAL 17 HOUR)
       END
       WHERE check_out IS NULL
-        AND NOW() >= DATE_ADD(DATE(check_in), INTERVAL 17 HOUR)
+        AND ? >= DATE_ADD(DATE(check_in), INTERVAL 17 HOUR)
     `;
 
-    db.query(query, (error, result) => {
+    db.query(query, [currentManilaTime], (error, result) => {
       if (error) {
         reject(error);
         return;
