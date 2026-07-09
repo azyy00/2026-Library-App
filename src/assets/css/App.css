@@ -18,15 +18,24 @@
   --radius-lg: 22px;
   --radius-md: 18px;
   --radius-sm: 14px;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
-  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-  line-height: 1.5;
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  line-height: 1.55;
   color: var(--text-main);
   background: var(--surface-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -65,7 +74,39 @@ h6,
 .attendance-summary-card strong,
 .metric-slab strong,
 .profile-stat-value {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+h1,
+h2,
+h3,
+.admin-page-title,
+.attendance-hero-title,
+.attendance-banner h1 {
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Tabular figures keep data columns and stat readouts optically aligned. */
+.dashboard-mini-stat strong,
+.metric-slab strong,
+.attendance-summary-card strong,
+.attendance-control-stat strong,
+.attendance-desk-card strong,
+.profile-stat-value,
+.profile-analytics-card strong,
+.active-visitor-mini-card strong,
+.dashboard-directory-summary strong,
+.dashboard-table td,
+.profile-table td,
+.visitor-table td {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 .section-eyebrow,
@@ -82,7 +123,7 @@ h6,
 
 .admin-shell {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .admin-sidebar {
@@ -94,7 +135,7 @@ h6,
   position: sticky;
   top: 0;
   align-self: flex-start;
-  height: 100vh;
+  height: 100dvh;
   padding: 1.5rem 1.1rem;
   box-sizing: border-box;
   overflow-y: auto;
@@ -2186,7 +2227,7 @@ h6,
 }
 
 .monitoring-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 1.75rem;
   background:
     radial-gradient(circle at top right, rgba(212, 162, 76, 0.18), transparent 26%),
@@ -2683,7 +2724,7 @@ h6,
 }
 
 .monitoring-register-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 1.25rem 1rem;
   background:
     radial-gradient(circle at top right, rgba(212, 162, 76, 0.18), transparent 28%),
@@ -2824,7 +2865,7 @@ h6,
 
 .auth-loading-screen,
 .login-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 2rem;
   background: #faf8f7;
 }
@@ -2890,7 +2931,7 @@ h6,
   display: grid;
   gap: 0.05rem;
   color: #8f0606;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.28em;
@@ -4290,7 +4331,7 @@ h6,
 
 .inventory-hero h2 {
   color: #2f1219;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: clamp(2rem, 3vw, 2.7rem);
   margin-bottom: 0.35rem;
 }
@@ -4334,7 +4375,7 @@ h6,
 
 .inventory-summary-card strong {
   color: #6f1020;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: 2rem;
   line-height: 1;
 }
@@ -4366,7 +4407,7 @@ h6,
 
 .inventory-panel-header h3 {
   color: #2f1219;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   margin-bottom: 0.3rem;
 }
@@ -4466,7 +4507,7 @@ h6,
 
 .inventory-book-title strong {
   color: #2f1219;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: 1.05rem;
   line-height: 1.35;
 }
