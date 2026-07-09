@@ -18,6 +18,7 @@ const allowedOrigins = `${process.env.CLIENT_ORIGIN || process.env.CLIENT_URL ||
   .map((origin) => origin.trim())
   .filter(Boolean);
 const storageMode = getStorageMode();
+const isProductionRuntime = () => process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 
 const parseOrigin = (origin) => {
   try {
@@ -70,9 +71,31 @@ if (isVercelRuntime() && storageMode === 'local') {
   console.warn('Local file storage is not persistent on Vercel. Configure Cloudinary to enable profile image uploads in production.');
 }
 
+if (isProductionRuntime() && allowedOrigins.length === 0) {
+  console.warn('CLIENT_ORIGIN is not set. Cross-origin browser requests will be rejected in production until an allowlist is configured.');
+}
+
+const isRequestOriginAllowed = (origin) => {
+  // Requests without an Origin header (same-origin, curl, server-to-server) are allowed.
+  if (!origin) {
+    return true;
+  }
+
+  if (isAllowedOrigin(origin)) {
+    return true;
+  }
+
+  // With no allowlist configured, stay permissive in development only.
+  if (allowedOrigins.length === 0) {
+    return !isProductionRuntime();
+  }
+
+  return false;
+};
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || isAllowedOrigin(origin)) {
+    if (isRequestOriginAllowed(origin)) {
       callback(null, true);
       return;
     }

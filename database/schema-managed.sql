@@ -22,6 +22,8 @@ CREATE TABLE attendance_logs (
     purpose VARCHAR(200) NOT NULL,
     check_in DATETIME DEFAULT CURRENT_TIMESTAMP,
     check_out DATETIME,
+    checked_in_by VARCHAR(60) DEFAULT NULL,
+    checked_out_by VARCHAR(60) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );

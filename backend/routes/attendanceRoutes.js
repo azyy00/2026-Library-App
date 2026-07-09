@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { CUTOFF_LABEL, isAfterCutoff } = require('../config/attendanceCutoff');
+const { ensureAttendanceAuditColumns } = require('../config/attendanceSchema');
 const {
     getEndOfMonthDateInManila,
     getEndOfWeekDateInManila,
@@ -12,6 +13,20 @@ const {
 } = require('../config/manilaTime');
 const dbPromise = db.promise();
 const MONITORING_HOURS = Array.from({ length: 12 }, (_, index) => index + 6);
+
+// The employee performing each action is recorded for audit purposes.
+// requireEmployeeAuth runs ahead of this router, so req.employee is always set.
+const getActor = (req) => `${req.employee?.username || ''}`.trim() || null;
+
+// Make sure the audit columns exist before any attendance query runs.
+router.use(async (req, res, next) => {
+    try {
+        await ensureAttendanceAuditColumns();
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
 
 const createHttpError = (status, message, extra = {}) => {
     const error = new Error(message);
@@ -165,11 +180,11 @@ const getKioskLatestAttendance = async (studentDbId) => {
     return attendanceRows[0] || null;
 };
 
-const createLockedCheckIn = async (connection, student, purpose) => {
+const createLockedCheckIn = async (connection, student, purpose, actor = null) => {
     const checkInTime = getSqlDateTimeInManila();
     const [insertResult] = await connection.query(
-        'INSERT INTO attendance_logs (student_id, purpose, check_in) VALUES (?, ?, ?)',
-        [student.id, purpose, checkInTime]
+        'INSERT INTO attendance_logs (student_id, purpose, check_in, checked_in_by) VALUES (?, ?, ?, ?)',
+        [student.id, purpose, checkInTime, actor]
     );
     const [attendanceRows] = await connection.query(
         `SELECT
@@ -186,11 +201,11 @@ const createLockedCheckIn = async (connection, student, purpose) => {
     return attendanceRows[0];
 };
 
-const completeLockedCheckOut = async (connection, attendanceId) => {
+const completeLockedCheckOut = async (connection, attendanceId, actor = null) => {
     const checkoutTime = getSqlDateTimeInManila();
     await connection.query(
-        'UPDATE attendance_logs SET check_out = ? WHERE id = ?',
-        [checkoutTime, attendanceId]
+        'UPDATE attendance_logs SET check_out = ?, checked_out_by = ? WHERE id = ?',
+        [checkoutTime, actor, attendanceId]
     );
 
     const [attendanceRows] = await connection.query(
@@ -290,6 +305,8 @@ router.post('/kiosk/check-in', async (req, res) => {
         return res.status(400).json({ error: 'Select the visit purpose before checking in.' });
     }
 
+    const actor = getActor(req);
+
     try {
         const { student, attendance } = await runStudentAttendanceTransaction(studentId, async (connection, lockedStudent) => {
             const activeAttendance = await getLockedActiveAttendance(connection, lockedStudent.id);
@@ -306,7 +323,7 @@ router.post('/kiosk/check-in', async (req, res) => {
             }
 
             return {
-                attendance: await createLockedCheckIn(connection, lockedStudent, purpose)
+                attendance: await createLockedCheckIn(connection, lockedStudent, purpose, actor)
             };
         });
 
@@ -329,6 +346,8 @@ router.post('/kiosk/check-out', async (req, res) => {
         return res.status(400).json({ error: 'Student ID is required.' });
     }
 
+    const actor = getActor(req);
+
     try {
         const { student, attendance } = await runStudentAttendanceTransaction(studentId, async (connection, lockedStudent) => {
             const activeAttendance = await getLockedActiveAttendance(connection, lockedStudent.id);
@@ -338,7 +357,7 @@ router.post('/kiosk/check-out', async (req, res) => {
             }
 
             return {
-                attendance: await completeLockedCheckOut(connection, activeAttendance.id)
+                attendance: await completeLockedCheckOut(connection, activeAttendance.id, actor)
             };
         });
 
@@ -362,6 +381,8 @@ router.post('/kiosk/scan', async (req, res) => {
         return res.status(400).json({ error: 'Student ID is required.' });
     }
 
+    const actor = getActor(req);
+
     try {
         const result = await runStudentAttendanceTransaction(studentId, async (connection, lockedStudent) => {
             const activeAttendance = await getLockedActiveAttendance(connection, lockedStudent.id);
@@ -369,7 +390,7 @@ router.post('/kiosk/scan', async (req, res) => {
             if (activeAttendance) {
                 return {
                     action: 'check_out',
-                    attendance: await completeLockedCheckOut(connection, activeAttendance.id)
+                    attendance: await completeLockedCheckOut(connection, activeAttendance.id, actor)
                 };
             }
 
@@ -386,7 +407,7 @@ router.post('/kiosk/scan', async (req, res) => {
 
             return {
                 action: 'check_in',
-                attendance: await createLockedCheckIn(connection, lockedStudent, purpose)
+                attendance: await createLockedCheckIn(connection, lockedStudent, purpose, actor)
             };
         });
 
@@ -417,6 +438,8 @@ router.post('/checkin', async (req, res) => {
         return res.status(400).json({ error: 'Student ID and purpose are required' });
     }
 
+    const actor = getActor(req);
+
     try {
         const { student, attendance } = await runStudentAttendanceTransaction(studentId, async (connection, lockedStudent) => {
             const activeAttendance = await getLockedActiveAttendance(connection, lockedStudent.id);
@@ -429,7 +452,7 @@ router.post('/checkin', async (req, res) => {
             }
 
             return {
-                attendance: await createLockedCheckIn(connection, lockedStudent, purpose)
+                attendance: await createLockedCheckIn(connection, lockedStudent, purpose, actor)
             };
         });
 
@@ -466,7 +489,8 @@ router.get('/active', (req, res) => {
     
     db.query(query, [currentManilaTime], (err, results) => {
         if (err) {
-            res.status(500).json({ error: err.message });
+            console.error('Active attendance query error:', err);
+            res.status(500).json({ error: 'Unable to load active visitors right now.' });
             return;
         }
         res.json(results);
@@ -590,12 +614,14 @@ router.get('/tracker', (req, res) => {
 
     db.query(summaryQuery, summaryParams, (summaryErr, summaryResults) => {
         if (summaryErr) {
-            return res.status(500).json({ error: summaryErr.message });
+            console.error('Attendance tracker summary query error:', summaryErr);
+            return res.status(500).json({ error: 'Unable to load the attendance tracker right now.' });
         }
 
         db.query(recordsQuery, recordsParams, (recordsErr, recordResults) => {
             if (recordsErr) {
-                return res.status(500).json({ error: recordsErr.message });
+                console.error('Attendance tracker records query error:', recordsErr);
+                return res.status(500).json({ error: 'Unable to load the attendance tracker right now.' });
             }
 
             res.json({
@@ -618,17 +644,21 @@ router.get('/tracker', (req, res) => {
 
 router.post('/checkout/:id', (req, res) => {
     const checkoutTime = getSqlDateTimeInManila();
+    const actor = getActor(req);
 
-    db.query('UPDATE attendance_logs SET check_out = ? WHERE id = ?',
-        [checkoutTime, req.params.id],
+    // Only close a visit that is still open, so re-posting can never overwrite
+    // the check_out timestamp of an already-completed record.
+    db.query('UPDATE attendance_logs SET check_out = ?, checked_out_by = ? WHERE id = ? AND check_out IS NULL',
+        [checkoutTime, actor, req.params.id],
         (err, result) => {
             if (err) {
-                res.status(500).json({ error: err.message });
+                console.error('Manual check-out error:', err);
+                res.status(500).json({ error: 'Unable to check out that record right now.' });
                 return;
             }
 
             if (result.affectedRows === 0) {
-                res.status(404).json({ error: 'Attendance record not found' });
+                res.status(409).json({ error: 'That attendance record was not found or is already checked out.' });
                 return;
             }
 
@@ -666,21 +696,23 @@ router.get('/export', (req, res) => {
     
     db.query(query, (err, activities) => {
         if (err) {
-            res.status(500).json({ error: err.message });
+            console.error('Attendance export query error:', err);
+            res.status(500).json({ error: 'Unable to export attendance activity right now.' });
             return;
         }
 
         // Get statistics
         const statsQuery = `
-            SELECT 
+            SELECT
                 COUNT(*) as totalVisits,
                 COUNT(CASE WHEN check_out IS NULL THEN 1 END) as activeVisitors
             FROM attendance_logs
         `;
-        
+
         db.query(statsQuery, (statsErr, stats) => {
             if (statsErr) {
-                res.status(500).json({ error: statsErr.message });
+                console.error('Attendance export stats query error:', statsErr);
+                res.status(500).json({ error: 'Unable to export attendance activity right now.' });
                 return;
             }
 

@@ -18,6 +18,58 @@ const {
 
 const router = express.Router();
 
+// --- Login rate limiting -------------------------------------------------
+// Throttles repeated failed logins per client + username to resist
+// brute-force. In-memory per instance: on serverless this resets per cold
+// start, but still meaningfully limits sustained guessing on a warm instance.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 8;
+const LOGIN_ATTEMPTS_MAX_KEYS = 5000;
+const loginAttempts = new Map();
+
+const getLoginKey = (req) => {
+  const forwarded = `${req.headers['x-forwarded-for'] || ''}`.split(',')[0].trim();
+  const ip = forwarded || req.ip || req.socket?.remoteAddress || 'unknown';
+  const username = `${req.body?.username || ''}`.trim().toLowerCase();
+  return `${ip}|${username}`;
+};
+
+const isLoginRateLimited = (key) => {
+  const entry = loginAttempts.get(key);
+
+  if (!entry) {
+    return false;
+  }
+
+  if (Date.now() - entry.firstAttemptAt > LOGIN_WINDOW_MS) {
+    loginAttempts.delete(key);
+    return false;
+  }
+
+  return entry.count >= LOGIN_MAX_ATTEMPTS;
+};
+
+const recordLoginFailure = (key) => {
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+
+  if (!entry || now - entry.firstAttemptAt > LOGIN_WINDOW_MS) {
+    // Guard against unbounded growth from spoofed keys.
+    if (loginAttempts.size >= LOGIN_ATTEMPTS_MAX_KEYS) {
+      loginAttempts.clear();
+    }
+
+    loginAttempts.set(key, { count: 1, firstAttemptAt: now });
+    return;
+  }
+
+  entry.count += 1;
+};
+
+const clearLoginFailures = (key) => {
+  loginAttempts.delete(key);
+};
+
 const storage = usesLocalStorage()
   ? multer.diskStorage({
       destination(req, file, cb) {
@@ -50,12 +102,26 @@ const upload = multer({
 });
 
 router.post('/login', async (req, res) => {
+  const loginKey = getLoginKey(req);
+
+  if (isLoginRateLimited(loginKey)) {
+    res.status(429).json({ error: 'Too many login attempts. Please wait a few minutes and try again.' });
+    return;
+  }
+
   const result = await authenticateEmployee(req.body?.username, req.body?.password);
 
   if (!result.ok) {
+    // Only count credential failures toward the limit, not validation errors.
+    if (result.status === 401) {
+      recordLoginFailure(loginKey);
+    }
+
     res.status(result.status).json({ error: result.message });
     return;
   }
+
+  clearLoginFailures(loginKey);
 
   res.json({
     token: createAuthToken(result.employee),

@@ -373,22 +373,6 @@ TIDB_ENABLE_SSL=true
 
 ---
 
-## 🛡️ Security Notes &amp; Roadmap
-
-Findings from the internal audit of the attendance and auth subsystems, ordered by priority. The check-in engine itself is **sound** — transactional row-locking, parameterized queries, timezone-safe, dual-mode cutoff. These are the areas to harden next.
-
-| Priority | Item | Why it matters |
-|:--------:|------|----------------|
-| 🔴 | **Audit trail** | `attendance_logs` records the student and times but not *which employee* performed each action. Add an actor column or audit table so every check-in / checkout / edit is attributable. |
-| 🔴 | **Login rate limiting** | `POST /api/auth/login` is unthrottled — add lockout to resist brute-force. |
-| 🟠 | **Sanitize 500 responses** | `/active`, `/tracker`, `/checkout/:id`, `/export` return raw DB errors; replace with generic messages and log internally. |
-| 🟠 | **Guard `POST /checkout/:id`** | Verify the visit is still open before writing `check_out`, so re-posting can't overwrite a completed record. |
-| 🟡 | **Confirm `/api/books` policy** | The only unauthenticated data route — gate it if the catalog isn't meant to be public. |
-| 🟡 | **Lock down CORS** | When `CLIENT_ORIGIN` is unset the API accepts all origins; require an explicit allowlist in production. |
-| 🟡 | **Token revocation** | Tokens are stateless and valid until expiry; consider short TTL + refresh or a server-side denylist. |
-
----
-
 <div align="center">
 
 <sub>Built for real school-library operations — attendance recorded by students at the kiosk,<br />fully managed and monitored by authorized library staff.</sub>
