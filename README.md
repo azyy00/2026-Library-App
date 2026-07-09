@@ -1,178 +1,269 @@
-# GCC Library Attendance Monitoring System
+# GCC Library Attendance & Monitoring System
 
-A web-based library attendance system for Goa Community College that supports:
+A web-based attendance and monitoring platform for the **Goa Community College Library**. Library staff sign in to a protected admin console; students check in and out through a separate kiosk-style monitoring station that writes to the same live database.
 
-- employee-only administration
-- student attendance monitoring through a separate kiosk-style page
-- student registration
-- attendance check-in and check-out
-- dashboard statistics and attendance tracking
-- profile image uploads
+The project is a two-part application:
 
-The system is built as a two-part application:
+- **React** frontend — the user interface for staff and the kiosk
+- **Express** backend — authentication, student records, attendance, reporting, and the book catalog
 
-- a React frontend for the user interface
-- an Express backend for authentication, student records, attendance, and reporting
+---
+
+## Table of Contents
+
+1. [System Overview](#1-system-overview)
+2. [Features](#2-features)
+3. [Tech Stack](#3-tech-stack)
+4. [Architecture](#4-architecture)
+5. [Attendance Engine](#5-attendance-engine)
+6. [Data Model](#6-data-model)
+7. [API Reference](#7-api-reference)
+8. [Authentication & Security](#8-authentication--security)
+9. [Local Setup](#9-local-setup)
+10. [Deployment](#10-deployment)
+11. [Project Structure](#11-project-structure)
+12. [Security Notes & Roadmap](#12-security-notes--roadmap)
+
+---
 
 ## 1. System Overview
 
-This project is designed for two main users:
+The system serves two audiences from one codebase and one database:
 
-- `Library employees / admins`
-  - log in to the protected admin system
-  - manage students
-  - monitor attendance
-  - view dashboard analytics
-  - update the admin profile and credentials
+| User | Where they work | What they can do |
+|------|-----------------|------------------|
+| **Library staff / admin** | Protected admin console | Manage students, monitor attendance, view analytics, manage the book catalog, update their own account |
+| **Students** | Kiosk monitoring station | Look up their ID, check in / check out, register if not yet on record |
 
-- `Students`
-  - use the separate attendance monitoring page
-  - search by student ID
-  - check in or check out
-  - register first if not yet in the student record
+The kiosk writes attendance directly into the shared database, so the admin dashboard always reflects the latest activity in real time. The kiosk station itself is opened by authorized staff — it is not a public, unauthenticated endpoint.
 
-The student monitoring page writes attendance directly into the same database used by the admin dashboard, so the admin side always reflects the latest student activity.
+---
 
-## 2. Main Features
+## 2. Features
 
-### Admin side
-- Employee login with protected routes
-- Dashboard with total visits, active visitors, purpose distribution, course distribution, and trends
-- Student registration and editing
-- Student profile viewing
-- Attendance tracker and active visitor management
-- Admin profile update for username, password, and account details
+### Admin console
+- Employee login with token-protected routes
+- Dashboard: total visits, active visitors, purpose distribution, course distribution, and trends
+- Student registration, editing, profile viewing, and profile-image uploads
+- Attendance tracker with period (today / week / month / all) and status (pending / completed) filters
+- Active-visitor list with live "minutes inside" per student
+- Manual check-out override for individual records
+- Data export of all attendance activity
+- Book catalog and inventory management
+- Self-service admin profile update (name, username, password, photo)
 
-### Student monitoring side
-- Separate kiosk-style attendance interface
-- Student ID lookup
-- Explicit `Check in` and `Check out` actions
-- Purpose selection during check-in
-- Hourly check-in count
-- Separate student registration page for students not yet encoded
+### Kiosk monitoring station
+- Student-ID lookup with profile preview
+- Explicit **Check in** / **Check out** actions, plus a single-scan endpoint that toggles automatically
+- Purpose selection required on check-in
+- Hourly check-in count for the current day (6 AM – 5 PM)
+- Separate registration page for students not yet encoded
+- **5:00 PM cutoff**: new check-ins are blocked and open visits are auto-closed
 
-## 3. Tools and Technologies Used
+---
 
-### Frontend
-- `React 18`
-- `React Router DOM`
-- `Axios`
-- `Bootstrap 5`
-- `Chart.js`
-- `react-chartjs-2`
-- `xlsx`
-- `file-saver`
+## 3. Tech Stack
 
-### Backend
-- `Node.js 20`
-- `Express`
-- `mysql2`
-- `cors`
-- `dotenv`
-- `multer`
-- native Node `crypto` for employee auth token signing and password hashing
+**Frontend** — React 18, React Router DOM, Axios, Bootstrap 5, Chart.js / react-chartjs-2, `xlsx`, `file-saver`
 
-### Database and storage
-- `TiDB Cloud`
-  - used in production as the online MySQL-compatible database
-- `MySQL`
-  - supported for local development
-- `Cloudinary`
-  - used in production for student profile image storage
+**Backend** — Node.js 20, Express, `mysql2`, `cors`, `dotenv`, `multer`, and Node's native `crypto` for password hashing (scrypt) and token signing (HMAC-SHA256)
 
-### Deployment and development tools
-- `Vercel`
-  - frontend hosting
-  - backend serverless hosting
-- `Git` and `GitHub`
-- `Nodemon`
-- `concurrently`
+**Data & storage** — TiDB Cloud (production, MySQL-compatible), MySQL (local dev), Cloudinary (production profile images)
+
+**Deployment** — Vercel (frontend + backend as two projects), Git / GitHub, Nodemon, `concurrently`
+
+---
 
 ## 4. Architecture
 
 ```text
-Students/Admins
+Students / Staff
       |
       v
 React Frontend (Vercel)
       |
-      v
-Express API (Vercel)
+      v  HTTPS + Bearer token
+Express API (Vercel serverless)
       |
-      +--> TiDB Cloud / MySQL database
+      +--> TiDB Cloud / MySQL   (student, attendance, employee, book data)
       |
-      +--> Cloudinary image storage
+      +--> Cloudinary           (profile image storage)
 ```
 
-### Why it was deployed this way
+The frontend is a static React build; the backend is an Express app exposed through `backend/api/index.js` as a Vercel serverless function. Database and image storage are external services because Vercel provides no persistent local filesystem.
 
-The system was deployed as `two Vercel projects`:
+---
 
-1. `Frontend project`
-   - deployed from the repository root
-   - serves the React application
+## 5. Attendance Engine
 
-2. `Backend project`
-   - deployed from the `backend` application
-   - runs the Express API
+The attendance flow is the core of the system and is built for correctness under concurrent use.
 
-This structure is the best fit for the current codebase because:
+### Check-in / check-out lifecycle
+1. A student ID is submitted at the kiosk.
+2. The backend opens a transaction and takes a **row lock** (`SELECT ... FOR UPDATE`) on the student and their open session.
+3. If no open session exists → a new `check_in` row is created (purpose required).
+   If an open session exists → it is closed with a `check_out` timestamp.
+4. The transaction commits; the dashboard reflects the change immediately.
 
-- the frontend is a static React build
-- the backend is an API server
-- the database and image storage are external services
-- Vercel does not provide permanent local storage for uploaded files
+Row-level locking inside a transaction (`runStudentAttendanceTransaction` in [`backend/routes/attendanceRoutes.js`](backend/routes/attendanceRoutes.js)) prevents duplicate open sessions from rapid or double scans.
 
-## 5. How the System Was Deployed
+### Timezone handling
+All timestamps and duration math flow through [`backend/config/manilaTime.js`](backend/config/manilaTime.js), pinning the system to **Asia/Manila** regardless of server locale. This keeps durations, daily buckets, and the cutoff consistent in production.
 
-### Production deployment flow
+### 5:00 PM cutoff
+Defined in [`backend/config/attendanceCutoff.js`](backend/config/attendanceCutoff.js):
 
-1. The `frontend` was deployed to Vercel from the project root.
-2. The `backend` was deployed to Vercel from the `backend` app.
-3. The database was moved online using `TiDB Cloud`.
-4. Student image uploads were moved to `Cloudinary`.
-5. Environment variables were added in Vercel for:
-   - API connection
-   - CORS
-   - TiDB connection
-   - Cloudinary credentials
-   - employee login seed
+- **New check-ins are rejected** after 5:00 PM (`isAfterCutoff`).
+- **Open visits are auto-closed** by a sweep that sets `check_out` to the 5:00 PM boundary.
 
-### Frontend deployment
+The sweep runs in two modes:
+- On **every `/api` request** (safe for Vercel's stateless serverless model).
+- On a **60-second interval** when running as a long-lived local process.
 
-- Framework: `Create React App`
-- Build command: `npm run build`
-- Output directory: `build`
-- Routing support: handled by root `vercel.json`, which rewrites all paths to `index.html`
+### Reporting
+- `GET /api/attendance/active` — everyone currently inside, with live minutes elapsed.
+- `GET /api/attendance/tracker` — filtered records plus summary counts (today / week / month, pending / completed), capped at 200 rows.
+- `GET /api/attendance/export` — full activity dataset with computed durations and status for spreadsheet export.
 
-Frontend environment variable:
+---
 
-```env
-REACT_APP_API_URL=https://your-backend-project.vercel.app/api
+## 6. Data Model
+
+Four core tables (`backend/database/schema-production.sql`):
+
+### `students`
+Student identity and profile. Key fields: `student_id` (external ID, unique), `first_name`, `last_name`, `middle_name`, `course`, `year_level`, `section`, `email`, `gender`, `address`, `profile_image`.
+
+### `attendance_logs`
+One row per library visit. Fields: `student_id` (FK → `students.id`, `ON DELETE CASCADE`), `purpose`, `check_in`, `check_out`. An open visit has `check_out IS NULL`.
+
+### `employee_accounts`
+Staff login accounts. Fields: `username` (unique), `password_hash` (scrypt, salted), `full_name`, `title`, `email`, `phone_number`, `profile_note`, `profile_image`.
+
+### `books`
+Library catalog and inventory: bibliographic details, `copies`, subjects, call/accession numbers, and acquisition metadata.
+
+---
+
+## 7. API Reference
+
+Base path: `/api`. All routes except `/api/auth/login`, `/api/auth/logout`, and `/api/books` require an `Authorization: Bearer <token>` header.
+
+### Auth — `/api/auth`
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/login` | Authenticate; returns token + employee |
+| GET | `/session` | Validate token, return current employee |
+| GET | `/profile` | Load employee profile |
+| PUT | `/profile` | Update profile (requires current password) |
+| POST | `/profile-image` | Upload/replace profile photo |
+| POST | `/logout` | Client-side session end |
+
+### Attendance — `/api/attendance` *(auth required)*
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/kiosk/summary` | Today's totals + hourly buckets + recent activity |
+| GET | `/kiosk/student/:studentId` | Kiosk lookup with check-in state |
+| POST | `/kiosk/check-in` | Kiosk check-in (purpose required) |
+| POST | `/kiosk/check-out` | Kiosk check-out |
+| POST | `/kiosk/scan` | Single-scan auto toggle (in ↔ out) |
+| POST | `/checkin` | Admin check-in |
+| POST | `/checkout/:id` | Manual check-out of one record |
+| GET | `/active` | Everyone currently inside |
+| GET | `/tracker` | Filtered records + summary counts |
+| GET | `/export` | Full activity export |
+
+### Other
+- `/api/students` *(auth)* — CRUD, search, profile images, profiles with recent activity
+- `/api/stats` *(auth)* — dashboard chart + summary data
+- `/api/books` *(public)* — book catalog and inventory
+
+---
+
+## 8. Authentication & Security
+
+Staff-only authentication protects the admin console and the kiosk.
+
+**How it works**
+1. Staff log in with username + password.
+2. Credentials are checked against `employee_accounts`; passwords are stored as salted **scrypt** hashes and compared in constant time.
+3. On success the server issues a **stateless HMAC-SHA256 token** (`payload.signature`, base64url) with a configurable TTL (default 12 h).
+4. The frontend sends the token as a `Bearer` header; [`requireEmployeeAuth`](backend/config/auth.js) rejects any request with a missing, tampered, or expired token.
+
+**Notes**
+- The signing secret comes from `AUTH_SECRET`; if unset, it is derived from configured credentials. **Set `AUTH_SECRET` explicitly in production.**
+- In local development, a fallback account (`library-admin` / `library123`) is available only when no employee is configured and `NODE_ENV` is not `production`.
+- On first run, the backend auto-creates the `employee_accounts` table and seeds it from environment variables.
+
+See [Security Notes & Roadmap](#12-security-notes--roadmap) for known limitations.
+
+---
+
+## 9. Local Setup
+
+### Requirements
+- Node.js 20.x and npm
+- MySQL (or a TiDB-compatible database)
+
+### Install
+```bash
+npm install          # frontend deps (from project root)
+cd backend
+npm install          # backend deps
 ```
 
-### Backend deployment
+### Environment
 
-- Platform: `Vercel`
-- Runtime style: `Express` app exposed through `backend/api/index.js`
-- Node version: `20.x`
-- Rewrites handled by `backend/vercel.json`
-
-Backend environment variables commonly used:
-
+**Frontend** (`.env` at root):
 ```env
-CLIENT_ORIGIN=https://your-frontend-project.vercel.app
+REACT_APP_API_URL=http://localhost:3001/api
+```
+
+**Backend** (`backend/.env`):
+```env
+PORT=3001
+CLIENT_ORIGIN=http://localhost:3000
 
 EMPLOYEE_USERNAME=librarian
 EMPLOYEE_PASSWORD=change_me
-EMPLOYEE_NAME=GCC Library Staff
-EMPLOYEE_TITLE=Library Administrator
+AUTH_SECRET=generate_a_long_random_string
 
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=
 DB_NAME=library_attendance
+
+FILE_STORAGE=local
+```
+
+### Run
+```bash
+npm run dev          # frontend + backend together (from root)
+
+npm start            # frontend only
+cd backend && npm run dev   # backend only
+```
+
+---
+
+## 10. Deployment
+
+Deployed as **two Vercel projects** — a static React build from the repo root, and the Express API from `backend/`.
+
+**Frontend** — Create React App; build `npm run build`, output `build`; root `vercel.json` rewrites all paths to `index.html`.
+
+**Backend** — Express exposed via `backend/api/index.js`; Node 20.x; rewrites in `backend/vercel.json`.
+
+Production environment variables (set in Vercel):
+```env
+CLIENT_ORIGIN=https://your-frontend-project.vercel.app
+AUTH_SECRET=your_long_random_secret
+
+EMPLOYEE_USERNAME=librarian
+EMPLOYEE_PASSWORD=change_me
+EMPLOYEE_NAME=GCC Library Staff
+EMPLOYEE_TITLE=Library Administrator
 
 FILE_STORAGE=cloudinary
 CLOUDINARY_CLOUD_NAME=your_cloud_name
@@ -187,269 +278,56 @@ TIDB_DATABASE=library_attendance
 TIDB_ENABLE_SSL=true
 ```
 
-### Why TiDB Cloud was used
+**Why TiDB Cloud** — MySQL-compatible, so the existing schema and queries run unchanged.
+**Why Cloudinary** — Vercel's filesystem is ephemeral; uploaded images must live in external storage.
 
-TiDB Cloud was used for the faster deployment path because it is MySQL-compatible, so the existing backend queries and schema could remain in place without rewriting the system to a different database model.
+---
 
-### Why Cloudinary was used
-
-Cloudinary was used because uploaded profile images should not be stored on Vercel's temporary filesystem in production.
-
-## 6. Database Design
-
-The core production schema uses three main tables:
-
-### `students`
-Stores student identity and profile data.
-
-Main fields:
-- `student_id`
-- `first_name`
-- `last_name`
-- `middle_name`
-- `address`
-- `email`
-- `gender`
-- `course`
-- `year_level`
-- `section`
-- `profile_image`
-
-### `attendance_logs`
-Stores each library visit.
-
-Main fields:
-- `student_id` (linked to the student record)
-- `purpose`
-- `check_in`
-- `check_out`
-
-### `employee_accounts`
-Stores employee login accounts.
-
-Main fields:
-- `username`
-- `password_hash`
-- `full_name`
-- `title`
-- `email`
-- `phone_number`
-- `profile_note`
-
-## 7. Backend Overview
-
-The backend is organized into configuration modules and route modules.
-
-### Entry point
-
-- `backend/server.js`
-  - creates the Express app
-  - applies CORS and JSON middleware
-  - mounts all API routes
-  - exports the app for Vercel
-  - starts a local server only when running outside Vercel
-
-### Backend configuration modules
-
-- `backend/config/db.js`
-  - creates the MySQL/TiDB connection pool
-  - supports both `DB_*` and `TIDB_*` environment variables
-  - supports SSL for cloud database connections
-
-- `backend/config/auth.js`
-  - manages employee login
-  - seeds the first employee account from environment variables
-  - hashes passwords
-  - creates and validates auth tokens
-  - protects admin-only routes
-
-- `backend/config/storage.js`
-  - manages file storage strategy
-  - uses local upload storage in development
-  - uses Cloudinary in production
-
-- `backend/config/attendanceCutoff.js`
-  - handles attendance cutoff logic
-  - auto-checks out open visits after the cutoff time
-
-- `backend/config/manilaTime.js`
-  - standardizes time handling in Asia/Manila
-  - keeps attendance durations and timestamps aligned with local library time
-
-### Backend route modules
-
-- `backend/routes/authRoutes.js`
-  - `POST /api/auth/login`
-  - `GET /api/auth/session`
-  - `GET /api/auth/profile`
-  - `PUT /api/auth/profile`
-  - `POST /api/auth/logout`
-
-- `backend/routes/studentRoutes.js`
-  - create, edit, delete, and search students
-  - upload or replace profile images
-  - return full student profiles with recent activity
-
-- `backend/routes/attendanceRoutes.js`
-  - admin attendance check-in and check-out
-  - active attendance list
-  - tracker records and export
-  - kiosk summary
-  - kiosk student lookup
-  - kiosk check-in and kiosk check-out
-
-- `backend/routes/statsRoutes.js`
-  - returns dashboard statistics for charts and summary cards
-
-## 8. Authentication Flow
-
-The system uses employee-only authentication for the admin side.
-
-### How it works
-
-1. Employee logs in with username and password.
-2. Backend verifies the credentials against `employee_accounts`.
-3. Backend returns an auth token.
-4. Frontend stores and sends that token in protected API requests.
-5. Protected admin routes reject requests without a valid token.
-
-### Notes
-
-- In local development, a fallback development account can be used if no configured employee is present.
-- In production, the system uses the stored employee account table.
-- The monitoring page is also protected, so only authorized staff can open the kiosk page.
-
-## 9. Frontend Pages
-
-Main pages in the frontend:
-
-- `LoginPage`
-  - employee login
-
-- `Dashboard`
-  - admin overview and analytics
-
-- `AdminProfilePage`
-  - admin account update page
-
-- `AttendanceMonitoringPage`
-  - kiosk-style student attendance interface
-
-- `MonitoringRegistrationPage`
-  - separate registration page used from the kiosk flow
-
-## 10. Key System Behaviors
-
-### Attendance monitoring behavior
-
-- When a student is looked up in the kiosk page:
-  - if not currently inside, the system allows `Check in`
-  - if already inside, the system allows `Check out`
-
-### Hourly check-in count
-
-The hourly count is based on the `check_in` time of each attendance record. If one student checks in at `1:00 PM`, the `1:00 PM` row increases by `1`. If another checks in at `2:00 PM`, the `2:00 PM` row increases by `1`.
-
-### Attendance cutoff
-
-The system supports a library cutoff time. New check-ins are blocked after cutoff, while open visits can be auto-closed by the backend logic.
-
-## 11. Local Setup
-
-### Requirements
-
-- `Node.js 20.x`
-- `npm`
-- `MySQL` or TiDB-compatible database
-
-### Install
-
-From the project root:
-
-```bash
-npm install
-cd backend
-npm install
-```
-
-### Environment setup
-
-Frontend:
-
-```env
-REACT_APP_API_URL=http://localhost:3001/api
-```
-
-Backend:
-
-```env
-PORT=3001
-CLIENT_ORIGIN=http://localhost:3000
-EMPLOYEE_USERNAME=librarian
-EMPLOYEE_PASSWORD=change_me
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=library_attendance
-FILE_STORAGE=local
-```
-
-### Run locally
-
-Frontend only:
-
-```bash
-npm start
-```
-
-Backend only:
-
-```bash
-cd backend
-npm run dev
-```
-
-Both together from root:
-
-```bash
-npm run dev
-```
-
-## 12. Project Structure
+## 11. Project Structure
 
 ```text
 2026-Library-App/
-|-- backend/
-|   |-- api/
-|   |-- config/
-|   |-- database/
-|   |-- routes/
-|   |-- server.js
-|   |-- vercel.json
-|-- database/
-|   |-- schema-production.sql
-|-- public/
-|-- src/
-|   |-- components/
-|   |-- layouts/
-|   |-- pages/
-|   |-- services/
-|-- package.json
-|-- setup.md
-|-- vercel.json
+├── backend/
+│   ├── api/index.js            # Vercel serverless entry
+│   ├── config/
+│   │   ├── auth.js             # login, hashing, tokens, requireEmployeeAuth
+│   │   ├── db.js               # MySQL/TiDB connection pool (+ SSL)
+│   │   ├── storage.js          # local vs Cloudinary strategy
+│   │   ├── attendanceCutoff.js # 5 PM cutoff + auto-checkout sweep
+│   │   └── manilaTime.js       # Asia/Manila time helpers
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   ├── attendanceRoutes.js
+│   │   ├── studentRoutes.js
+│   │   ├── statsRoutes.js
+│   │   └── bookRoutes.js
+│   ├── database/schema-production.sql
+│   └── server.js               # app assembly, CORS, route mounting
+├── database/                   # schema variants
+├── public/
+├── src/
+│   ├── components/
+│   ├── pages/                  # Login, Dashboard, AttendanceMonitoring, ...
+│   ├── layouts/
+│   ├── context/                # AuthContext
+│   └── services/api.js
+└── package.json
 ```
 
-## 13. Summary
+---
 
-This project is a complete library attendance and monitoring system with:
+## 12. Security Notes & Roadmap
 
-- a protected admin application
-- a separate student attendance kiosk
-- online cloud deployment
-- cloud image storage
-- online database storage
-- student registration and attendance tracking
-- reporting and monitoring features for library staff
+Findings from the internal audit of the attendance and auth subsystems, ordered by priority. The check-in engine itself is sound (transactional row-locking, parameterized queries, timezone-safe, dual-mode cutoff); these are the areas to harden next.
 
-It is suited for real school library operations where attendance must be recorded by students while still being monitored and managed securely by authorized library employees.
+- [ ] **Audit trail** — `attendance_logs` records the student and times but not *which employee* performed a check-in, manual checkout, or edit. Add an actor column (or a dedicated audit table) so every action is attributable.
+- [ ] **Login rate limiting** — `POST /api/auth/login` is currently unthrottled; add throttling/lockout to resist brute-force.
+- [ ] **Sanitize 500 responses** — `/active`, `/tracker`, `/checkout/:id`, and `/export` return raw DB error messages; replace with generic messages and log internally.
+- [ ] **Guard `POST /checkout/:id`** — verify the target visit is still open before writing `check_out`, so re-posting can't overwrite a completed record.
+- [ ] **Confirm `/api/books` access policy** — it is the only unauthenticated data route; gate it behind `requireEmployeeAuth` if the catalog is not meant to be public.
+- [ ] **Lock down CORS** — when `CLIENT_ORIGIN` is unset the API accepts all origins; require an explicit allowlist in production.
+- [ ] **Token revocation** — tokens are stateless and valid until expiry; logout is client-side only. Consider a short TTL plus refresh, or a server-side denylist, for immediate revocation.
+
+---
+
+*Built for real school-library operations: attendance is recorded by students at the kiosk while remaining fully managed and monitored by authorized library staff.*
