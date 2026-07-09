@@ -255,6 +255,9 @@ function AttendanceMonitoringPage() {
               <button type="button" className="monitoring-toolbar-button" onClick={() => navigate('/monitoring/register')}>
                 Register Student
               </button>
+              <button type="button" className="monitoring-toolbar-button" onClick={() => navigate('/opac')}>
+                OPAC
+              </button>
               <button type="button" className="monitoring-toolbar-button" onClick={handleLogout} disabled={isSigningOut}>
                 {isSigningOut ? 'Signing out...' : 'Sign Out'}
               </button>

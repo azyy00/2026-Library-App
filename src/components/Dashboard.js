@@ -39,7 +39,14 @@ const EMPTY_STATS = {
   visitsByPurpose: [],
   dailyVisits: [],
   courseDistribution: [],
-  monthlyTrends: []
+  monthlyTrends: [],
+  programYearMatrix: [],
+  filters: {
+    month: 'all',
+    year: new Date().getFullYear(),
+    label: ''
+  },
+  availableYears: []
 };
 
 const chartPalette = ['#6f1020', '#9b2940', '#c56b7b', '#d4a24c', '#8d6e63', '#dec7a3'];
@@ -67,6 +74,13 @@ const TRACKER_STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed' }
 ];
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const REPORT_MONTH_OPTIONS = [
+  { value: 'all', label: 'All Months' },
+  ...MONTH_LABELS.map((label, index) => ({
+    value: `${index + 1}`,
+    label
+  }))
+];
 
 const parseAttendanceDateTime = (value) => {
   if (!value) {
@@ -289,7 +303,13 @@ const drawRoundedRect = (context, x, y, width, height, radius, fillStyle, stroke
 };
 
 function Dashboard() {
+  const currentYear = new Date().getFullYear();
   const [stats, setStats] = useState(EMPTY_STATS);
+  const [statsFilters, setStatsFilters] = useState({
+    month: 'all',
+    year: `${currentYear}`
+  });
+  const [availableStatYears, setAvailableStatYears] = useState([`${currentYear}`]);
   const [searchTerm, setSearchTerm] = useState('');
   const [studentProfile, setStudentProfile] = useState(null);
   const [searchMessage, setSearchMessage] = useState('');
@@ -317,11 +337,15 @@ function Dashboard() {
   const [isLoadingTracker, setIsLoadingTracker] = useState(true);
   const [trackerMessage, setTrackerMessage] = useState('');
 
-  const fetchStats = async () => {
+  const fetchStats = async (filters = statsFilters) => {
     try {
       setIsLoadingStats(true);
-      const response = await statsApi.getOverview();
+      const response = await statsApi.getOverview(filters);
       setStats(response.data);
+      const normalizedYears = Array.isArray(response.data?.availableYears) && response.data.availableYears.length > 0
+        ? response.data.availableYears.map((year) => `${year}`)
+        : [`${filters.year || currentYear}`];
+      setAvailableStatYears(normalizedYears);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -359,14 +383,15 @@ function Dashboard() {
     }
   };
 
-  const loadCoreDashboardData = async () => {
-    await Promise.all([fetchStats(), fetchStudents()]);
-  };
-
   useEffect(() => {
-    loadCoreDashboardData();
+    fetchStudents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetchStats(statsFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statsFilters.month, statsFilters.year]);
 
   useEffect(() => {
     fetchCheckoutTracker(trackerFilters);
@@ -710,17 +735,20 @@ function Dashboard() {
   const courseData = stats.courseDistribution || [];
   const dailyData = stats.dailyVisits || [];
   const monthlyData = stats.monthlyTrends || [];
+  const programYearRows = stats.programYearMatrix || [];
   const topPurpose = purposeData[0];
   const topCourse = courseData[0];
-  const todayVisits = dailyData[dailyData.length - 1]?.visits || 0;
   const completedVisits = Math.max(stats.totalVisits - stats.activeVisitors, 0);
   const trackerPeriodLabel = TRACKER_PERIOD_OPTIONS.find((option) => option.value === trackerFilters.period)?.label || 'Today';
   const trackerStatusLabel = TRACKER_STATUS_OPTIONS.find((option) => option.value === trackerFilters.status)?.label || 'All';
+  const reportingScopeLabel = stats.filters?.label || (statsFilters.month === 'all' ? `All reports in ${statsFilters.year}` : `${MONTH_LABELS[Number(statsFilters.month) - 1]} ${statsFilters.year}`);
+  const reportingBucketLabel = stats.filters?.month === 'all' ? 'Months shown' : 'Days shown';
+  const reportingBucketCount = dailyData.length;
   const purposeColors = purposeData.map((_, index) => chartPalette[index % chartPalette.length]);
   const courseColors = courseData.map((_, index) => chartPalette[index % chartPalette.length]);
   const allCourses = Array.from(new Set(students.map((student) => student.course).filter(Boolean))).sort();
   const allSections = Array.from(new Set(students.map((student) => student.section).filter(Boolean))).sort();
-  const totalPrograms = allCourses.length;
+  const totalPrograms = courseData.length;
   const studentQuery = studentFilters.query.trim().toLowerCase();
   const filteredStudents = students
     .filter((student) => {
@@ -745,13 +773,13 @@ function Dashboard() {
 
       return `${left.last_name} ${left.first_name}`.localeCompare(`${right.last_name} ${right.first_name}`);
     });
-  const programYearLabels = allCourses;
+  const programYearLabels = Array.from(new Set(programYearRows.map((item) => item.course).filter(Boolean))).sort();
   const programYearDatasets = YEAR_LEVELS.map((yearLevel, index) => ({
     label: formatYearLabel(yearLevel),
     data: programYearLabels.map((course) =>
-      students.filter(
-        (student) => student.course === course && Number(student.year_level) === yearLevel
-      ).length
+      programYearRows.find(
+        (item) => item.course === course && Number(item.year_level) === yearLevel
+      )?.count || 0
     ),
     backgroundColor: chartPalette[index % chartPalette.length],
     borderRadius: 8,
@@ -815,10 +843,10 @@ function Dashboard() {
   };
 
   const performanceChart = {
-    labels: dailyData.map((item) => item.date),
+    labels: dailyData.map((item) => item.label || item.date),
     datasets: [
       {
-        label: 'Daily Visits',
+        label: stats.filters?.month === 'all' ? 'Monthly Visits' : 'Daily Visits',
         data: dailyData.map((item) => item.visits),
         borderColor: '#6f1020',
         backgroundColor: 'rgba(111, 16, 32, 0.12)',
@@ -961,6 +989,47 @@ function Dashboard() {
             This dashboard keeps student attendance, visit purpose trends, and registration tools in the same workspace.
           </p>
 
+          <div className="dashboard-report-filter-card">
+            <div className="dashboard-report-filter-header">
+              <label htmlFor="dashboard-report-month">Report Filter</label>
+              <small>{reportingScopeLabel}</small>
+            </div>
+
+            <div className="dashboard-report-filter-grid">
+              <div className="dashboard-report-filter-field">
+                <label htmlFor="dashboard-report-month">Month</label>
+                <select
+                  id="dashboard-report-month"
+                  className="dashboard-year-select dashboard-filter-select"
+                  value={statsFilters.month}
+                  onChange={(event) => setStatsFilters((current) => ({ ...current, month: event.target.value }))}
+                >
+                  {REPORT_MONTH_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="dashboard-report-filter-field">
+                <label htmlFor="dashboard-report-year">Year</label>
+                <select
+                  id="dashboard-report-year"
+                  className="dashboard-year-select dashboard-filter-select"
+                  value={statsFilters.year}
+                  onChange={(event) => setStatsFilters((current) => ({ ...current, year: event.target.value }))}
+                >
+                  {availableStatYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           <div className="dashboard-mini-stats">
             <div className="dashboard-mini-stat">
               <span>Total visits</span>
@@ -971,12 +1040,12 @@ function Dashboard() {
               <strong>{isLoadingStats ? '...' : stats.activeVisitors}</strong>
             </div>
             <div className="dashboard-mini-stat">
-              <span>Today&apos;s visits</span>
-              <strong>{todayVisits}</strong>
+              <span>{reportingBucketLabel}</span>
+              <strong>{isLoadingStats ? '...' : reportingBucketCount}</strong>
             </div>
             <div className="dashboard-mini-stat">
               <span>Programs tracked</span>
-              <strong>{totalPrograms}</strong>
+              <strong>{isLoadingStats ? '...' : totalPrograms}</strong>
             </div>
           </div>
         </div>
@@ -1039,6 +1108,16 @@ function Dashboard() {
             <Link to="/monitoring" className="dashboard-tool-tile dashboard-tool-link">
               <span>Monitoring kiosk</span>
               <small>Open student ID scan screen</small>
+            </Link>
+
+            <Link to="/opac" className="dashboard-tool-tile dashboard-tool-link">
+              <span>Online Public Access Catalog</span>
+              <small>Search books and open catalog records</small>
+            </Link>
+
+            <Link to="/inventory-books" className="dashboard-tool-tile dashboard-tool-link">
+              <span>Inventory Books</span>
+              <small>Manage books that appear in the OPAC</small>
             </Link>
 
             <Link to="/active" className="dashboard-tool-tile dashboard-tool-link">
@@ -1235,23 +1314,24 @@ function Dashboard() {
         <article className="dashboard-panel dashboard-panel-large">
           <div className="dashboard-panel-header">
             <h3>Attendance Performance Overview</h3>
+            <p className="dashboard-subcopy mb-0">{reportingScopeLabel}</p>
           </div>
           <div className="dashboard-chart-wrap chart-tall">
             {dailyData.length > 0 ? (
               <Line data={performanceChart} options={performanceOptions} />
             ) : (
-              <p className="dashboard-empty-copy">Daily attendance performance will appear after visits are logged.</p>
+              <p className="dashboard-empty-copy">Attendance performance will appear after visits are logged for the selected month and year.</p>
             )}
           </div>
         </article>
 
         <article className="dashboard-panel dashboard-panel-large">
           <div className="dashboard-panel-header dashboard-panel-header-spread">
-            <h3>Program Year Matrix</h3>
-            <select className="dashboard-year-select" defaultValue="current">
-              <option value="current">Current Records</option>
-              <option value="last-six-months">Last 6 Months</option>
-            </select>
+            <div>
+              <h3>Program Year Matrix</h3>
+              <p className="dashboard-subcopy mb-0">{reportingScopeLabel}</p>
+            </div>
+            <span className="dashboard-year-pill">{statsFilters.month === 'all' ? 'Monthly view' : 'Daily view'}</span>
           </div>
           <div className="dashboard-chart-wrap chart-tall">
             {programYearLabels.length > 0 ? (
@@ -1263,7 +1343,7 @@ function Dashboard() {
                 options={programMatrixOptions}
               />
             ) : (
-              <p className="dashboard-empty-copy">Program year distribution will appear after student registration.</p>
+              <p className="dashboard-empty-copy">Program year distribution will appear after attendance records are logged for the selected month and year.</p>
             )}
           </div>
         </article>

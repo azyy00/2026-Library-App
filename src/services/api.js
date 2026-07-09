@@ -106,7 +106,16 @@ export const monitoringApi = {
 };
 
 export const statsApi = {
-  getOverview: () => api.get('/stats')
+  getOverview: (params = {}) => api.get('/stats', { params })
+};
+
+export const bookApi = {
+  getAll: () => api.get('/books'),
+  getOne: (bookId) => api.get(`/books/${bookId}`),
+  create: (payload) => api.post('/books', payload),
+  update: (bookId, payload) => api.put(`/books/${bookId}`, payload),
+  remove: (bookId) => api.delete(`/books/${bookId}`),
+  import: (books) => api.post('/books/import', { books })
 };
 
 export default api;

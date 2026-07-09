@@ -37,3 +37,28 @@ CREATE TABLE IF NOT EXISTS employee_accounts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS books (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    catalog_key VARCHAR(255) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    edition VARCHAR(80) DEFAULT 'N/A',
+    volume VARCHAR(80) DEFAULT 'N/A',
+    copyright VARCHAR(40) DEFAULT 'N/A',
+    copies INT NOT NULL DEFAULT 1,
+    subject_1 VARCHAR(255),
+    subject_2 VARCHAR(255),
+    subject_3 VARCHAR(255),
+    call_number VARCHAR(120),
+    author_number VARCHAR(120),
+    accession_numbers TEXT,
+    inventory_years VARCHAR(120),
+    publisher VARCHAR(255),
+    place_of_publication VARCHAR(255),
+    isbn VARCHAR(120),
+    remarks VARCHAR(255),
+    source_of_funds VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

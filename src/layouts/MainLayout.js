@@ -38,6 +38,18 @@ const pageMeta = {
     title: 'Student Registration',
     subtitle: 'Create or update student records before attendance starts.'
   },
+  '/inventory-books': {
+    title: 'Inventory Books',
+    subtitle: 'Manage the live book inventory, import workbook data, and keep the OPAC catalog in sync.'
+  },
+  '/catalog': {
+    title: 'Online Public Access Catalog',
+    subtitle: 'Search the GCC Library book inventory and open a full catalog record for each title.'
+  },
+  '/catalog/books': {
+    title: 'Catalog Record',
+    subtitle: 'Review the selected book details, copy count, and related subjects from the inventory.'
+  },
   '/admin-profile': {
     title: 'Admin Profile',
     subtitle: 'Review your account details and update username, password, and administrator information.'
@@ -47,7 +59,9 @@ const pageMeta = {
 function MainLayout() {
   const location = useLocation();
   const { employee } = useAuth();
-  const activePage = pageMeta[location.pathname] || pageMeta['/'];
+  const activePage = Object.entries(pageMeta).find(([path]) => (
+    location.pathname === path || location.pathname.startsWith(`${path}/`)
+  ))?.[1] || pageMeta['/'];
   const profileImageUrl = buildAssetUrl(employee?.profileImage);
   const currentDate = new Date().toLocaleDateString([], {
     weekday: 'long',

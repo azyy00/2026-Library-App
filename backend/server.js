@@ -8,6 +8,7 @@ const { requireEmployeeAuth } = require('./config/auth');
 const { getStorageMode, isVercelRuntime, usesLocalStorage } = require('./config/storage');
 const authRoutes = require('./routes/authRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
+const bookRoutes = require('./routes/bookRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 
@@ -79,7 +80,7 @@ app.use(cors({
     callback(new Error('Origin not allowed by CORS'));
   }
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 if (usesLocalStorage()) {
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -99,6 +100,7 @@ app.use('/api', async (req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/students', requireEmployeeAuth, studentRoutes);
 app.use('/api/attendance', requireEmployeeAuth, attendanceRoutes);
+app.use('/api/books', bookRoutes);
 app.use('/api/stats', requireEmployeeAuth, statsRoutes);
 
 // Error handling

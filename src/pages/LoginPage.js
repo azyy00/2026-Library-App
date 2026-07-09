@@ -14,8 +14,10 @@ function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [supportTopic, setSupportTopic] = useState('');
-
-  const redirectPath = location.state?.from?.pathname || '/';
+  const redirectQuery = new URLSearchParams(location.search).get('redirect');
+  const redirectPath = redirectQuery?.startsWith('/')
+    ? redirectQuery
+    : location.state?.from?.pathname || '/';
   const supportMessage = supportTopic === 'access'
     ? 'New employee accounts are created only by the library administrator.'
     : supportTopic === 'reset'

@@ -14,13 +14,15 @@ const navGroups = [
     items: [
       { to: '/attendance', label: 'Attendance Desk' },
       { to: '/monitoring', label: 'Monitoring Kiosk' },
+      { to: '/opac', label: 'Online Public Access Catalog' },
       { to: '/active', label: 'Active Visitors' }
     ]
   },
   {
     title: 'Records',
     items: [
-      { to: '/register', label: 'Student Registration' }
+      { to: '/register', label: 'Student Registration' },
+      { to: '/inventory-books', label: 'Inventory Books' }
     ]
   },
   {

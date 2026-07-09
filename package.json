@@ -26,6 +26,7 @@
     "start": "react-scripts start",
     "backend": "cd backend && npm start",
     "backend:dev": "cd backend && npm run dev",
+    "catalog:build": "node scripts/generateBookCatalog.js",
     "dev": "concurrently \"npm start\" \"npm run backend:dev\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
