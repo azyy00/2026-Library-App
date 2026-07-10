@@ -14,6 +14,7 @@ import BookCatalogPage from './pages/BookCatalogPage';
 import InventoryBooksPage from './pages/InventoryBooksPage';
 import MonitoringRegistrationPage from './pages/MonitoringRegistrationPage';
 import LoginPage from './pages/LoginPage';
+import NotFoundPage from './pages/NotFoundPage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import './assets/css/App.css';
@@ -83,7 +84,7 @@ function App() {
             <Route path="active" element={<ActiveVisitors />} />
             <Route path="admin-profile" element={<AdminProfilePage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AuthProvider>
     </Router>

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import StudentEditModal from './StudentEditModal';
 import StudentProfile from './StudentProfile';
+import Skeleton, { SkeletonRows } from './Skeleton';
+import EmptyState from './EmptyState';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -180,6 +182,44 @@ const formatExportDateTime = (value) => {
 
   return `${month}/${day}/${parsedValue.year} ${displayHour}:${`${parsedValue.minute}`.padStart(2, '0')} ${suffix}`;
 };
+
+const formatActor = (value) => {
+  const cleaned = `${value || ''}`.trim();
+
+  if (!cleaned) {
+    return null;
+  }
+
+  return {
+    label: cleaned,
+    isSystem: cleaned.toLowerCase().startsWith('system')
+  };
+};
+
+function TrackerActorCell({ checkedInBy, checkedOutBy }) {
+  const inActor = formatActor(checkedInBy);
+  const outActor = formatActor(checkedOutBy);
+
+  if (!inActor && !outActor) {
+    return <span className="tracker-actor-system">Not recorded</span>;
+  }
+
+  const renderLine = (label, actor) => (
+    <div className="tracker-actor-line">
+      <span>{label}</span>
+      <small className={actor?.isSystem ? 'tracker-actor-system' : ''}>
+        {actor ? actor.label : '—'}
+      </small>
+    </div>
+  );
+
+  return (
+    <div className="tracker-actor">
+      {renderLine('In', inActor)}
+      {renderLine('Out', outActor)}
+    </div>
+  );
+}
 
 const formatYearLabel = (yearLevel) => {
   const numericYear = Number(yearLevel);
@@ -1033,19 +1073,19 @@ function Dashboard() {
           <div className="dashboard-mini-stats">
             <div className="dashboard-mini-stat">
               <span>Total visits</span>
-              <strong>{isLoadingStats ? '...' : stats.totalVisits}</strong>
+              <strong>{isLoadingStats ? <Skeleton className="skeleton-stat" /> : stats.totalVisits}</strong>
             </div>
             <div className="dashboard-mini-stat">
               <span>Active visitors</span>
-              <strong>{isLoadingStats ? '...' : stats.activeVisitors}</strong>
+              <strong>{isLoadingStats ? <Skeleton className="skeleton-stat" /> : stats.activeVisitors}</strong>
             </div>
             <div className="dashboard-mini-stat">
               <span>{reportingBucketLabel}</span>
-              <strong>{isLoadingStats ? '...' : reportingBucketCount}</strong>
+              <strong>{isLoadingStats ? <Skeleton className="skeleton-stat" /> : reportingBucketCount}</strong>
             </div>
             <div className="dashboard-mini-stat">
               <span>Programs tracked</span>
-              <strong>{isLoadingStats ? '...' : totalPrograms}</strong>
+              <strong>{isLoadingStats ? <Skeleton className="skeleton-stat" /> : totalPrograms}</strong>
             </div>
           </div>
         </div>
@@ -1138,7 +1178,7 @@ function Dashboard() {
           </div>
           <div className="dashboard-directory-summary">
             <span>Records shown</span>
-            <strong>{isLoadingTracker ? '...' : trackerRecords.length}</strong>
+            <strong>{isLoadingTracker ? <Skeleton width="2.2rem" height="1.2rem" /> : trackerRecords.length}</strong>
           </div>
         </div>
 
@@ -1179,27 +1219,27 @@ function Dashboard() {
         <div className="dashboard-tracker-summary-grid">
           <div className="metric-slab dashboard-tracker-slab">
             <span>Checked Out Today</span>
-            <strong>{isLoadingTracker ? '...' : trackerSummary.todayCheckedOut}</strong>
+            <strong>{isLoadingTracker ? <Skeleton className="skeleton-stat" /> : trackerSummary.todayCheckedOut}</strong>
             <small>Completed attendance records closed today.</small>
           </div>
           <div className="metric-slab dashboard-tracker-slab">
             <span>Checked Out This Week</span>
-            <strong>{isLoadingTracker ? '...' : trackerSummary.weekCheckedOut}</strong>
+            <strong>{isLoadingTracker ? <Skeleton className="skeleton-stat" /> : trackerSummary.weekCheckedOut}</strong>
             <small>Completed records closed during the current week.</small>
           </div>
           <div className="metric-slab dashboard-tracker-slab">
             <span>Checked Out This Month</span>
-            <strong>{isLoadingTracker ? '...' : trackerSummary.monthCheckedOut}</strong>
+            <strong>{isLoadingTracker ? <Skeleton className="skeleton-stat" /> : trackerSummary.monthCheckedOut}</strong>
             <small>Completed records closed during the current month.</small>
           </div>
           <div className="metric-slab dashboard-tracker-slab">
             <span>Pending Now</span>
-            <strong>{isLoadingTracker ? '...' : trackerSummary.pendingCount}</strong>
+            <strong>{isLoadingTracker ? <Skeleton className="skeleton-stat" /> : trackerSummary.pendingCount}</strong>
             <small>Students who are still inside the library right now.</small>
           </div>
           <div className="metric-slab dashboard-tracker-slab">
             <span>Completed Total</span>
-            <strong>{isLoadingTracker ? '...' : trackerSummary.completedCount}</strong>
+            <strong>{isLoadingTracker ? <Skeleton className="skeleton-stat" /> : trackerSummary.completedCount}</strong>
             <small>Attendance sessions that already reached check-out.</small>
           </div>
         </div>
@@ -1213,7 +1253,35 @@ function Dashboard() {
 
         <div className="table-responsive dashboard-tracker-table-wrap">
           {isLoadingTracker ? (
-            <p className="dashboard-empty-copy">Loading checkout tracker...</p>
+            <table className="table align-middle dashboard-table mb-0">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Program</th>
+                  <th>Purpose</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Recorded by</th>
+                  <th>Status</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                <SkeletonRows
+                  rows={5}
+                  columns={[
+                    { width: '70%' },
+                    { width: '85%' },
+                    { width: '60%' },
+                    { width: '80%' },
+                    { width: '80%' },
+                    { width: '75%' },
+                    { width: '4.5rem' },
+                    { width: '3rem' }
+                  ]}
+                />
+              </tbody>
+            </table>
           ) : trackerRecords.length > 0 ? (
             <table className="table align-middle dashboard-table mb-0">
               <thead>
@@ -1223,6 +1291,7 @@ function Dashboard() {
                   <th>Purpose</th>
                   <th>Check In</th>
                   <th>Check Out</th>
+                  <th>Recorded by</th>
                   <th>Status</th>
                   <th>Duration</th>
                 </tr>
@@ -1241,6 +1310,12 @@ function Dashboard() {
                     <td>{formatDateTime(record.check_in)}</td>
                     <td>{formatDateTime(record.check_out, record.check_in)}</td>
                     <td>
+                      <TrackerActorCell
+                        checkedInBy={record.checked_in_by}
+                        checkedOutBy={record.checked_out_by}
+                      />
+                    </td>
+                    <td>
                       <span className={`status-pill ${record.status === 'Completed' ? 'status-complete' : 'status-pending'}`}>
                         {record.status}
                       </span>
@@ -1251,7 +1326,11 @@ function Dashboard() {
               </tbody>
             </table>
           ) : (
-            <p className="dashboard-empty-copy">No student records match the current checkout tracker filters.</p>
+            <EmptyState
+              compact
+              title="No attendance records here yet"
+              description={`No visits match the ${trackerPeriodLabel.toLowerCase()} / ${trackerStatusLabel.toLowerCase()} filter. Try a wider period or a different status.`}
+            />
           )}
         </div>
       </section>
@@ -1549,10 +1628,31 @@ function Dashboard() {
                     </td>
                   </tr>
                 ))
+              ) : isLoadingStudents ? (
+                <SkeletonRows
+                  rows={6}
+                  columns={[
+                    { width: '80%' },
+                    { width: '70%' },
+                    { width: '3.5rem' },
+                    { width: '3rem' },
+                    { width: '85%' },
+                    { width: '60%', className: 'text-end' }
+                  ]}
+                />
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center text-muted py-4">
-                    {isLoadingStudents ? 'Loading student records...' : 'No students matched the selected filters.'}
+                  <td colSpan="6">
+                    <EmptyState
+                      compact
+                      title="No students match these filters"
+                      description="Adjust the search text, program, year, or section — or register a new student to get started."
+                      action={(
+                        <Link to="/register" className="btn btn-outline-maroon btn-sm">
+                          Register student
+                        </Link>
+                      )}
+                    />
                   </td>
                 </tr>
               )}

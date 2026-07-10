@@ -594,6 +594,8 @@ router.get('/tracker', (req, res) => {
             s.year_level,
             s.section,
             al.purpose,
+            al.checked_in_by,
+            al.checked_out_by,
             DATE_FORMAT(al.check_in, '%Y-%m-%d %H:%i:%s') AS check_in,
             DATE_FORMAT(al.check_out, '%Y-%m-%d %H:%i:%s') AS check_out,
             CASE

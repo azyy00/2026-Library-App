@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import StudentProfile from './StudentProfile';
+import Skeleton from './Skeleton';
+import EmptyState from './EmptyState';
 import { attendanceApi, buildAssetUrl, studentApi } from '../services/api';
 
 const MANILA_TIME_ZONE = 'Asia/Manila';
@@ -39,6 +41,7 @@ const getVisitorInitials = (visitor) => `${visitor?.first_name?.[0] || 'S'}${vis
 
 function ActiveVisitors() {
   const [activeVisitors, setActiveVisitors] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [filterTerm, setFilterTerm] = useState('');
   const [activePurpose, setActivePurpose] = useState('all');
@@ -71,6 +74,7 @@ function ActiveVisitors() {
       });
     } finally {
       setIsRefreshing(false);
+      setIsLoading(false);
     }
   };
 
@@ -218,21 +222,21 @@ function ActiveVisitors() {
         <div className="col-md-6 col-xl-4">
           <div className="metric-slab">
             <span>Open visits</span>
-            <strong>{activeVisitors.length}</strong>
+            <strong>{isLoading ? <Skeleton className="skeleton-stat" /> : activeVisitors.length}</strong>
             <small>Students currently inside the library.</small>
           </div>
         </div>
         <div className="col-md-6 col-xl-4">
           <div className="metric-slab">
             <span>Average stay</span>
-            <strong>{formatDuration(averageMinutes)}</strong>
+            <strong>{isLoading ? <Skeleton className="skeleton-stat" /> : formatDuration(averageMinutes)}</strong>
             <small>Average time spent across live attendance records.</small>
           </div>
         </div>
         <div className="col-md-6 col-xl-4">
           <div className="metric-slab">
             <span>Longest stay</span>
-            <strong>{longestStayVisitor ? formatDuration(longestStayVisitor.minutes_inside) : '0 min'}</strong>
+            <strong>{isLoading ? <Skeleton className="skeleton-stat" /> : longestStayVisitor ? formatDuration(longestStayVisitor.minutes_inside) : '0 min'}</strong>
             <small>{longestStayVisitor ? `${longestStayVisitor.first_name} ${longestStayVisitor.last_name}` : 'Waiting for the first visitor.'}</small>
           </div>
         </div>
@@ -283,15 +287,32 @@ function ActiveVisitors() {
             ))}
           </div>
 
-          {filteredVisitors.length === 0 ? (
-            <div className="attendance-empty-state compact">
-              <h5 className="mb-2">No matching active visitors</h5>
-              <p className="mb-0 text-muted">
-                {activeVisitors.length === 0
-                  ? 'There are no open attendance records at the moment.'
-                  : 'Try a different filter term or purpose to find the visitor you need.'}
-              </p>
+          {isLoading ? (
+            <div className="active-visitor-list" aria-hidden="true">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <article key={`visitor-skeleton-${index}`} className="active-visitor-card">
+                  <div className="active-visitor-card-main">
+                    <div className="active-visitor-card-copy" style={{ display: 'grid', gap: '0.4rem' }}>
+                      <Skeleton width="55%" height="1.15rem" />
+                      <Skeleton width="80%" height="0.85rem" />
+                    </div>
+                  </div>
+                  <div className="active-visitor-card-actions">
+                    <Skeleton width="6.5rem" height="2.1rem" radius="999px" />
+                  </div>
+                </article>
+              ))}
             </div>
+          ) : filteredVisitors.length === 0 ? (
+            <EmptyState
+              compact
+              title={activeVisitors.length === 0 ? 'The library is quiet right now' : 'No visitors match this filter'}
+              description={
+                activeVisitors.length === 0
+                  ? 'There are no open attendance records at the moment. New check-ins will appear here live.'
+                  : 'Try a different search term or purpose to find the visitor you need.'
+              }
+            />
           ) : (
             <div className="active-visitor-list">
               {filteredVisitors.map((visitor) => {
@@ -420,12 +441,10 @@ function ActiveVisitors() {
               </div>
             </>
           ) : (
-            <div className="attendance-empty-state">
-              <h5 className="mb-2">No live visitor selected</h5>
-              <p className="mb-0 text-muted">
-                When active attendance records appear, this board will show the selected student details and quick actions.
-              </p>
-            </div>
+            <EmptyState
+              title="No live visitor selected"
+              description="When active attendance records appear, this board shows the selected student's details and quick actions."
+            />
           )}
         </aside>
       </div>
