@@ -4832,3 +4832,132 @@ p {
 .notfound-links a:hover {
   text-decoration: underline;
 }
+
+/* ------------------------------------------------------------------ */
+/* OPAC redesign polish                                               */
+/* ------------------------------------------------------------------ */
+
+.catalog-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 150% at 100% 0%, rgba(212, 162, 76, 0.22), transparent 46%),
+    radial-gradient(90% 130% at 0% 100%, rgba(0, 0, 0, 0.2), transparent 55%),
+    #7b1325;
+}
+
+.catalog-hero::after {
+  content: "";
+  position: absolute;
+  right: -70px;
+  bottom: -100px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 248, 243, 0.14);
+  box-shadow: 0 0 0 24px rgba(255, 248, 243, 0.05);
+  pointer-events: none;
+}
+
+.catalog-hero-copy,
+.catalog-hero-search {
+  position: relative;
+  z-index: 1;
+}
+
+/* Result cards — book-spine accent, arrow CTA, spring hover */
+.catalog-result-card {
+  position: relative;
+  overflow: hidden;
+  padding-left: 1.35rem;
+  background: #fffdfb;
+  transition:
+    transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 0.24s ease,
+    border-color 0.24s ease;
+}
+
+.catalog-result-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background: linear-gradient(180deg, #9b2940, #6f1020);
+  opacity: 0.9;
+  transition: width 0.24s ease;
+}
+
+.catalog-result-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(111, 16, 32, 0.3);
+  box-shadow: 0 24px 42px rgba(111, 16, 32, 0.17);
+}
+
+.catalog-result-card:hover::before {
+  width: 8px;
+}
+
+.catalog-result-card:focus-visible {
+  outline: 3px solid rgba(111, 16, 32, 0.28);
+  outline-offset: 3px;
+}
+
+.catalog-result-meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-result-footer strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #7d1325;
+}
+
+.catalog-result-footer strong::after {
+  content: "\2192";
+  transition: transform 0.24s ease;
+}
+
+.catalog-result-card:hover .catalog-result-footer strong::after {
+  transform: translateX(4px);
+}
+
+/* Detail field cards — quiet hover lift */
+.catalog-detail-field {
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.catalog-detail-field:hover {
+  border-color: rgba(111, 16, 32, 0.18);
+  background: #fff5ef;
+}
+
+/* Catalog loading skeletons */
+.catalog-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.catalog-skeleton-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.2rem 1.05rem 1.2rem 1.35rem;
+  border: 1px solid rgba(111, 16, 32, 0.1);
+  border-radius: 22px;
+  background: #fffdfb;
+}
+
+.catalog-skeleton-card .skeleton {
+  background: rgba(111, 16, 32, 0.09);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-result-card,
+  .catalog-result-card::before,
+  .catalog-result-footer strong::after {
+    transition: none;
+  }
+}

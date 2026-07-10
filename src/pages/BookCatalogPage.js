@@ -1,6 +1,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import CatalogStandaloneShell from '../components/CatalogStandaloneShell';
+import Skeleton from '../components/Skeleton';
 import { CATALOG_SEARCH_FILTERS, buildCatalogIndex, searchCatalogBooks } from '../data/bookCatalog';
 import { bookApi } from '../services/api';
 
@@ -136,9 +137,25 @@ function BookCatalogPage() {
 
         {isLoadingBooks && !catalogMessage && (
           <section className="catalog-section">
-            <div className="catalog-empty-state">
-              <h4>Loading catalog</h4>
-              <p>Please wait while the latest inventory is prepared.</p>
+            <div className="catalog-section-header">
+              <div>
+                <span className="catalog-section-kicker">Preparing catalog</span>
+                <h3>Loading books</h3>
+              </div>
+            </div>
+            <div className="catalog-skeleton-grid">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={`catalog-skeleton-${index}`} className="catalog-skeleton-card" aria-hidden="true">
+                  <Skeleton width="40%" height="0.8rem" />
+                  <Skeleton width="90%" height="1.25rem" />
+                  <Skeleton width="65%" height="1rem" />
+                  <div style={{ display: 'flex', gap: '0.45rem' }}>
+                    <Skeleton width="4rem" height="1.6rem" radius="999px" />
+                    <Skeleton width="5rem" height="1.6rem" radius="999px" />
+                  </div>
+                  <Skeleton width="55%" height="0.85rem" />
+                </div>
+              ))}
             </div>
           </section>
         )}

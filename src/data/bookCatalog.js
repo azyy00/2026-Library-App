@@ -34,6 +34,25 @@ const uniqueValues = (values, fallback = 'N/A') => {
 
   return deduped.length > 0 ? deduped : [fallback];
 };
+
+// Removes duplicate entries (case/spacing-insensitive) from a list of record
+// values such as accession numbers, inventory years, or subjects, while keeping
+// the first occurrence and its original formatting.
+const dedupeList = (values = []) => {
+  const seen = new Set();
+
+  return values.reduce((result, value) => {
+    const cleaned = normalizeSpace(value);
+    const key = normalizeCatalogText(cleaned);
+
+    if (cleaned && key && !seen.has(key)) {
+      seen.add(key);
+      result.push(cleaned);
+    }
+
+    return result;
+  }, []);
+};
 const getYearFromSheetName = (sheetName) => {
   const match = `${sheetName}`.match(/(20\d{2})/);
   return match ? match[1] : `${sheetName}`;
@@ -68,10 +87,17 @@ const buildBookIndex = (book = {}) => {
     : normalizeSpace(book.inventoryYears)
       ? normalizeSpace(book.inventoryYears).split(',').map((value) => normalizeSpace(value)).filter(Boolean)
       : [];
+  // De-duplicate the repeatable record fields so a book never shows the same
+  // accession number, subject, call number, or inventory year twice.
+  const dedupedSubjects = dedupeList(subjects);
+  const dedupedCallNumbers = dedupeList(callNumbers);
+  const dedupedAuthorNumbers = dedupeList(authorNumbers);
+  const dedupedAccessionNumbers = dedupeList(accessionNumbers);
+  const dedupedInventoryYears = dedupeList(inventoryYears);
   const normalizedTitle = normalizeCatalogText(book.title);
   const normalizedAuthor = normalizeCatalogText(book.author);
-  const normalizedSubjects = subjects.map((subject) => normalizeCatalogText(subject));
-  const normalizedCallNumbers = callNumbers.map((callNumber) => normalizeCatalogText(callNumber));
+  const normalizedSubjects = dedupedSubjects.map((subject) => normalizeCatalogText(subject));
+  const normalizedCallNumbers = dedupedCallNumbers.map((callNumber) => normalizeCatalogText(callNumber));
   const normalizedPublisher = normalizeCatalogText(book.publisher);
   const searchIndex = [
     normalizedTitle,
@@ -87,11 +113,11 @@ const buildBookIndex = (book = {}) => {
     edition: book.edition || 'N/A',
     volume: book.volume || 'N/A',
     copyright: book.copyright || 'N/A',
-    subjects: subjects.length > 0 ? subjects : ['N/A'],
-    callNumbers: callNumbers.length > 0 ? callNumbers : [book.callNumber || 'N/A'],
-    authorNumbers: authorNumbers.length > 0 ? authorNumbers : [book.authorNumber || 'N/A'],
-    accessionNumbers: accessionNumbers.length > 0 ? accessionNumbers : ['N/A'],
-    inventoryYears: inventoryYears.length > 0 ? inventoryYears : ['N/A'],
+    subjects: dedupedSubjects.length > 0 ? dedupedSubjects : ['N/A'],
+    callNumbers: dedupedCallNumbers.length > 0 ? dedupedCallNumbers : [book.callNumber || 'N/A'],
+    authorNumbers: dedupedAuthorNumbers.length > 0 ? dedupedAuthorNumbers : [book.authorNumber || 'N/A'],
+    accessionNumbers: dedupedAccessionNumbers.length > 0 ? dedupedAccessionNumbers : ['N/A'],
+    inventoryYears: dedupedInventoryYears.length > 0 ? dedupedInventoryYears : ['N/A'],
     publisher: book.publisher || 'N/A',
     placeOfPublication: book.placeOfPublication || book.place_of_publication || 'N/A',
     isbn: book.isbn || 'N/A',

@@ -73,14 +73,22 @@ const ensureBooksTable = (() => {
 const normalizeSpace = (value) => `${value ?? ''}`.replace(/\s+/g, ' ').trim();
 const normalizeKeyText = (value) => normalizeSpace(value).toLowerCase();
 const toCommaSeparated = (value) => {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => normalizeSpace(item))
-      .filter(Boolean)
-      .join(', ');
-  }
+  const items = Array.isArray(value) ? value : normalizeSpace(value).split(',');
+  const seen = new Set();
 
-  return normalizeSpace(value);
+  return items
+    .map((item) => normalizeSpace(item))
+    .filter((item) => {
+      const key = item.toLowerCase();
+
+      if (!item || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    })
+    .join(', ');
 };
 const parseCommaSeparated = (value) => normalizeSpace(value)
   .split(',')
