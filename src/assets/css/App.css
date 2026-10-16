@@ -20,6 +20,19 @@
   --radius-sm: 14px;
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /* Neutrals tinted toward the maroon brand hue, replacing stray cool slates. */
+  --surface-tint: #faf6f7;
+  --text-ink: #3a2a2f;
+  --scrim: rgba(34, 19, 23, 0.52);
+
+  /* Motion: strong ease-out for responses and entrances, never the default ease. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 120ms;
+  --dur-fast: 160ms;
+  --dur-base: 200ms;
+  --dur-enter: 240ms;
 }
 
 html {
@@ -191,15 +204,15 @@ p {
   gap: 0.55rem;
   padding: 0.9rem 1rem;
   border-radius: 15px;
-  color: #344054;
+  color: var(--text-ink);
   font-weight: 600;
   text-decoration: none;
   background: transparent;
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
 .sidebar-link:hover {
@@ -264,7 +277,7 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: 999px;
   font-size: 0.92rem;
-  color: #344054;
+  color: var(--text-ink);
   background: #ffffff;
 }
 
@@ -335,7 +348,7 @@ p {
   box-shadow: var(--shadow-tight);
   font-weight: 700;
   text-decoration: none;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .admin-footer-link:hover,
@@ -425,7 +438,7 @@ p {
   margin-top: 1rem;
   padding: 0.95rem 1rem;
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -471,7 +484,7 @@ p {
 .dashboard-mini-stat {
   padding: 0.95rem 1rem;
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -498,7 +511,7 @@ p {
 .dashboard-search-card {
   padding: 1rem;
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -529,7 +542,7 @@ p {
   text-decoration: none;
   background: #ffffff;
   box-shadow: var(--shadow-tight);
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
 }
 
 .dashboard-upload-tile:hover,
@@ -627,7 +640,7 @@ p {
   padding: 0.55rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--surface-line);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   color: var(--text-muted);
   font-size: 0.84rem;
   font-weight: 700;
@@ -699,7 +712,7 @@ p {
   font-size: 0.9rem;
   font-weight: 600;
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .dashboard-filter-chip:hover {
@@ -911,13 +924,13 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: 999px;
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .active-purpose-chip:hover {
   transform: translateY(-1px);
   border-color: rgba(111, 16, 32, 0.18);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 24px rgba(67, 17, 29, 0.06);
 }
 
 .active-purpose-chip span {
@@ -962,13 +975,13 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: 16px;
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .active-visitor-card:hover {
   transform: translateY(-1px);
   border-color: rgba(111, 16, 32, 0.16);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 28px rgba(67, 17, 29, 0.06);
 }
 
 .active-visitor-card.is-selected {
@@ -1020,7 +1033,7 @@ p {
 .active-visitor-card-meta span:not(.purpose-badge) {
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  background: #f7f8fc;
+  background: var(--surface-tint);
 }
 
 .active-visitor-card-actions {
@@ -1042,7 +1055,7 @@ p {
   margin-bottom: 1rem;
   border-radius: 22px;
   border: 1px solid var(--surface-line);
-  background: #f8f9fc;
+  background: var(--surface-tint);
 }
 
 .active-visitor-profile-avatar {
@@ -1360,7 +1373,7 @@ p {
 
 .attendance-desk-card {
   padding: 1rem 1.1rem;
-  background: #f8f9fc;
+  background: var(--surface-tint);
 }
 
 .attendance-desk-card strong {
@@ -1390,7 +1403,7 @@ p {
 
 .attendance-guide-card ol {
   padding-left: 1.1rem;
-  color: #475467;
+  color: var(--text-ink);
 }
 
 .attendance-student-stage .student-preview-card,
@@ -1440,7 +1453,7 @@ p {
   padding: 1rem 1.05rem;
   border-radius: 18px;
   border: 1px solid var(--surface-line);
-  background: #f8f9fc;
+  background: var(--surface-tint);
 }
 
 .attendance-modal-note {
@@ -1496,8 +1509,8 @@ p {
   text-align: left;
   border: 1px solid var(--surface-line);
   border-radius: 16px;
-  background: #f8f9fc;
-  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+  background: var(--surface-tint);
+  transition: border-color var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
 
 .attendance-match-option:hover {
@@ -1598,7 +1611,7 @@ p {
   padding: 1.1rem 1.2rem;
   border: 1px solid var(--surface-line);
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
 }
 
 .attendance-block {
@@ -1626,7 +1639,7 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: var(--radius-md);
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .purpose-option span {
@@ -1731,7 +1744,7 @@ p {
   border: 1px dashed var(--surface-line-strong);
   border-radius: 18px;
   text-align: center;
-  background: #f7f8fc;
+  background: var(--surface-tint);
 }
 
 .attendance-empty-state.compact {
@@ -1751,7 +1764,7 @@ p {
   padding: 1rem;
   border-radius: 18px;
   border: 1px solid var(--surface-line);
-  background: #f8f9fc;
+  background: var(--surface-tint);
 }
 
 .visitor-feed-item p,
@@ -1775,7 +1788,7 @@ p {
 
 .attendance-side-note ol {
   padding-left: 1.1rem;
-  color: #475467;
+  color: var(--text-ink);
 }
 
 .profile-side-card,
@@ -1796,7 +1809,7 @@ p {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: rgba(15, 23, 42, 0.56);
+  background: var(--scrim);
   backdrop-filter: blur(8px);
 }
 
@@ -1806,7 +1819,7 @@ p {
   overflow-y: auto;
   border-radius: 28px;
   background: #ffffff;
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 28px 60px rgba(67, 17, 29, 0.2);
 }
 
 .student-profile-header {
@@ -1894,7 +1907,7 @@ p {
 .profile-stat-card {
   padding: 1rem;
   border-radius: 18px;
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -2022,7 +2035,7 @@ p {
 .profile-empty-state {
   padding: 1.5rem;
   border-radius: 18px;
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px dashed var(--surface-line-strong);
 }
 
@@ -2368,7 +2381,7 @@ p {
   border-radius: 14px;
   background: linear-gradient(180deg, #fff8ef 0%, #f3e0bc 100%);
   box-shadow: 0 10px 22px rgba(67, 17, 29, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
   white-space: nowrap;
 }
 
@@ -2543,7 +2556,7 @@ p {
   color: var(--navy);
   font-weight: 700;
   background: linear-gradient(180deg, #fffdfa 0%, #f6ede7 100%);
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .monitoring-purpose-button:hover {
@@ -3663,7 +3676,7 @@ p {
   background: linear-gradient(180deg, #fffdfb 0%, #fff7f2 100%);
   color: inherit;
   text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .catalog-result-card:hover,
@@ -4872,9 +4885,9 @@ p {
   padding-left: 1.35rem;
   background: #fffdfb;
   transition:
-    transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
-    box-shadow 0.24s ease,
-    border-color 0.24s ease;
+    transform var(--dur-enter) var(--ease-out),
+    box-shadow var(--dur-enter) var(--ease-out),
+    border-color var(--dur-enter) var(--ease-out);
 }
 
 .catalog-result-card::before {
@@ -4886,7 +4899,8 @@ p {
   height: 100%;
   background: linear-gradient(180deg, #9b2940, #6f1020);
   opacity: 0.9;
-  transition: width 0.24s ease;
+  transform-origin: left center;
+  transition: transform var(--dur-enter) var(--ease-out);
 }
 
 .catalog-result-card:hover {
@@ -4896,7 +4910,7 @@ p {
 }
 
 .catalog-result-card:hover::before {
-  width: 8px;
+  transform: scaleX(1.6);
 }
 
 .catalog-result-card:focus-visible {
@@ -4917,7 +4931,7 @@ p {
 
 .catalog-result-footer strong::after {
   content: "\2192";
-  transition: transform 0.24s ease;
+  transition: transform var(--dur-enter) var(--ease-out);
 }
 
 .catalog-result-card:hover .catalog-result-footer strong::after {
@@ -4926,7 +4940,7 @@ p {
 
 /* Detail field cards — quiet hover lift */
 .catalog-detail-field {
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .catalog-detail-field:hover {
@@ -4959,5 +4973,148 @@ p {
   .catalog-result-card::before,
   .catalog-result-footer strong::after {
     transition: none;
+  }
+}
+
+/* ==========================================================================
+   Interaction & motion layer
+   - Hover lifts only on devices that truly hover (kiosk tablets get sticky
+     hover otherwise).
+   - Every pressable surface acknowledges the press immediately.
+   - Overlays enter from a slight scale, never from nothing.
+   ========================================================================== */
+
+@media (hover: none) {
+  .sidebar-link:hover,
+  .admin-footer-link:hover,
+  .dashboard-upload-tile:hover,
+  .dashboard-tool-tile:hover,
+  .dashboard-filter-chip:hover,
+  .active-purpose-chip:hover,
+  .active-visitor-card:hover,
+  .attendance-match-option:hover,
+  .purpose-option:hover,
+  .monitoring-toolbar-button:hover,
+  .monitoring-toolbar-link:hover,
+  .monitoring-purpose-button:hover,
+  .catalog-result-card:hover,
+  .catalog-related-item:hover,
+  .catalog-result-card:hover::before,
+  .catalog-result-card:hover .catalog-result-footer strong::after {
+    transform: none;
+  }
+}
+
+.btn {
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+.btn:not(:disabled):not(.disabled):active,
+.dashboard-filter-chip:active,
+.active-purpose-chip:active,
+.purpose-option:not(.purpose-option-disabled):active,
+.monitoring-purpose-button:active,
+.monitoring-toolbar-button:active,
+.monitoring-toolbar-link:active,
+.attendance-match-option:active,
+.sidebar-link:active,
+.admin-footer-link:active {
+  transform: scale(0.97);
+  transition-duration: var(--dur-press);
+}
+
+/* Large surfaces press less, or they visibly distort. */
+.dashboard-upload-tile:active,
+.dashboard-tool-tile:active,
+.active-visitor-card:active,
+.catalog-result-card:active,
+.catalog-related-item:active {
+  transform: scale(0.985);
+  transition-duration: var(--dur-press);
+}
+
+.student-profile-overlay {
+  animation: scrim-in var(--dur-base) var(--ease-out);
+}
+
+.student-profile-modal {
+  animation: surface-in var(--dur-enter) var(--ease-out) both;
+}
+
+.alert {
+  animation: alert-in var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Keep the fade so state changes still read, but drop all movement. */
+  .student-profile-modal,
+  .alert {
+    animation-name: fade-in;
+  }
+
+  .btn:not(:disabled):not(.disabled):active,
+  .dashboard-filter-chip:active,
+  .active-purpose-chip:active,
+  .purpose-option:not(.purpose-option-disabled):active,
+  .monitoring-purpose-button:active,
+  .monitoring-toolbar-button:active,
+  .monitoring-toolbar-link:active,
+  .attendance-match-option:active,
+  .sidebar-link:active,
+  .admin-footer-link:active,
+  .dashboard-upload-tile:active,
+  .dashboard-tool-tile:active,
+  .active-visitor-card:active,
+  .catalog-result-card:active,
+  .catalog-related-item:active,
+  .sidebar-link:hover,
+  .admin-footer-link:hover,
+  .dashboard-upload-tile:hover,
+  .dashboard-tool-tile:hover,
+  .dashboard-filter-chip:hover,
+  .active-purpose-chip:hover,
+  .active-visitor-card:hover,
+  .attendance-match-option:hover,
+  .purpose-option:hover,
+  .monitoring-toolbar-button:hover,
+  .monitoring-toolbar-link:hover,
+  .monitoring-purpose-button:hover,
+  .catalog-related-item:hover {
+    transform: none;
   }
 }
