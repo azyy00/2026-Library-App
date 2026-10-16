@@ -20,6 +20,19 @@
   --radius-sm: 14px;
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /* Neutrals tinted toward the maroon brand hue, replacing stray cool slates. */
+  --surface-tint: #faf6f7;
+  --text-ink: #3a2a2f;
+  --scrim: rgba(34, 19, 23, 0.52);
+
+  /* Motion: strong ease-out for responses and entrances, never the default ease. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 120ms;
+  --dur-fast: 160ms;
+  --dur-base: 200ms;
+  --dur-enter: 240ms;
 }
 
 html {
@@ -83,7 +96,7 @@ h2,
 h3,
 .admin-page-title,
 .attendance-hero-title,
-.attendance-banner h1 {
+.attendance-banner-title {
   letter-spacing: -0.015em;
   text-wrap: balance;
 }
@@ -96,8 +109,6 @@ p {
 .dashboard-mini-stat strong,
 .metric-slab strong,
 .attendance-summary-card strong,
-.attendance-control-stat strong,
-.attendance-desk-card strong,
 .profile-stat-value,
 .profile-analytics-card strong,
 .active-visitor-mini-card strong,
@@ -191,15 +202,15 @@ p {
   gap: 0.55rem;
   padding: 0.9rem 1rem;
   border-radius: 15px;
-  color: #344054;
+  color: var(--text-ink);
   font-weight: 600;
   text-decoration: none;
   background: transparent;
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
 .sidebar-link:hover {
@@ -264,7 +275,7 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: 999px;
   font-size: 0.92rem;
-  color: #344054;
+  color: var(--text-ink);
   background: #ffffff;
 }
 
@@ -335,7 +346,7 @@ p {
   box-shadow: var(--shadow-tight);
   font-weight: 700;
   text-decoration: none;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .admin-footer-link:hover,
@@ -425,7 +436,7 @@ p {
   margin-top: 1rem;
   padding: 0.95rem 1rem;
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -471,7 +482,7 @@ p {
 .dashboard-mini-stat {
   padding: 0.95rem 1rem;
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -498,7 +509,7 @@ p {
 .dashboard-search-card {
   padding: 1rem;
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -529,7 +540,7 @@ p {
   text-decoration: none;
   background: #ffffff;
   box-shadow: var(--shadow-tight);
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
 }
 
 .dashboard-upload-tile:hover,
@@ -627,7 +638,7 @@ p {
   padding: 0.55rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--surface-line);
-  background: #f7f8fc;
+  background: var(--surface-tint);
   color: var(--text-muted);
   font-size: 0.84rem;
   font-weight: 700;
@@ -699,7 +710,7 @@ p {
   font-size: 0.9rem;
   font-weight: 600;
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .dashboard-filter-chip:hover {
@@ -911,13 +922,13 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: 999px;
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .active-purpose-chip:hover {
   transform: translateY(-1px);
   border-color: rgba(111, 16, 32, 0.18);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 24px rgba(67, 17, 29, 0.06);
 }
 
 .active-purpose-chip span {
@@ -962,13 +973,13 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: 16px;
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .active-visitor-card:hover {
   transform: translateY(-1px);
   border-color: rgba(111, 16, 32, 0.16);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 28px rgba(67, 17, 29, 0.06);
 }
 
 .active-visitor-card.is-selected {
@@ -1020,7 +1031,7 @@ p {
 .active-visitor-card-meta span:not(.purpose-badge) {
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  background: #f7f8fc;
+  background: var(--surface-tint);
 }
 
 .active-visitor-card-actions {
@@ -1042,7 +1053,7 @@ p {
   margin-bottom: 1rem;
   border-radius: 22px;
   border: 1px solid var(--surface-line);
-  background: #f8f9fc;
+  background: var(--surface-tint);
 }
 
 .active-visitor-profile-avatar {
@@ -1182,9 +1193,11 @@ p {
   color: rgba(255, 255, 255, 0.72);
 }
 
-.attendance-banner h1 {
+.attendance-banner-title {
   margin: 0;
-  font-size: clamp(3rem, 7vw, 4.9rem);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(2.2rem, 10vw, 4.9rem);
   line-height: 0.95;
   letter-spacing: 0.08em;
   color: #ffffff;
@@ -1220,84 +1233,6 @@ p {
   align-items: start;
 }
 
-.attendance-control-panel {
-  display: grid;
-  gap: 1rem;
-  padding: 1.25rem;
-  border: 1px solid var(--surface-line);
-  border-radius: 24px;
-  background: var(--surface-muted);
-}
-
-.attendance-control-head h3,
-.attendance-search-copy h3,
-.attendance-guide-card h4,
-.attendance-live-header h4 {
-  margin: 0 0 0.35rem;
-}
-
-.attendance-control-stat,
-.attendance-control-note,
-.attendance-desk-card,
-.attendance-guide-card,
-.attendance-live-card {
-  border: 1px solid var(--surface-line);
-  border-radius: 20px;
-  background: #ffffff;
-}
-
-.attendance-control-stat,
-.attendance-control-note {
-  padding: 1rem 1.05rem;
-}
-
-.attendance-control-stat span,
-.attendance-control-note span {
-  display: block;
-  margin-bottom: 0.28rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-soft);
-}
-
-.attendance-control-stat strong {
-  display: block;
-  margin-bottom: 0.2rem;
-  font-size: 2rem;
-  color: var(--navy);
-}
-
-.attendance-control-stat small,
-.attendance-control-note small {
-  color: var(--text-muted);
-}
-
-.attendance-control-note {
-  border-style: dashed;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.attendance-control-note strong {
-  display: block;
-  margin-bottom: 0.28rem;
-  color: var(--text-main);
-}
-
-.attendance-purpose-card {
-  padding: 1.15rem;
-  border: 1px solid var(--surface-line);
-  border-radius: 22px;
-  background: #ffffff;
-}
-
-.attendance-purpose-card h4 {
-  margin: 0 0 1rem;
-  text-align: center;
-  font-size: 1.35rem;
-}
-
 .attendance-purpose-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.8rem;
@@ -1327,22 +1262,6 @@ p {
   gap: 0.75rem;
 }
 
-.attendance-main-panel {
-  display: grid;
-  gap: 1rem;
-}
-
-.attendance-search-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.15rem;
-  border: 1px solid var(--surface-line);
-  border-radius: 22px;
-  background: #ffffff;
-}
-
 .attendance-search-group {
   width: min(430px, 100%);
 }
@@ -1352,72 +1271,9 @@ p {
   min-height: 48px;
 }
 
-.attendance-status-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.attendance-desk-card {
-  padding: 1rem 1.1rem;
-  background: #f8f9fc;
-}
-
-.attendance-desk-card strong {
-  display: block;
-  margin-bottom: 0.28rem;
-  font-size: 1.4rem;
-}
-
-.attendance-desk-card small {
-  color: var(--text-muted);
-}
-
-.attendance-main-grid {
-  display: grid;
-  grid-template-columns: minmax(250px, 0.85fr) minmax(0, 1.25fr);
-  gap: 1rem;
-}
-
-.attendance-guide-card,
-.attendance-live-card {
-  padding: 1.2rem;
-}
-
-.attendance-guide-card {
-  background: #ffffff;
-}
-
-.attendance-guide-card ol {
-  padding-left: 1.1rem;
-  color: #475467;
-}
-
 .attendance-student-stage .student-preview-card,
 .attendance-student-stage .attendance-empty-state {
   height: 100%;
-}
-
-.attendance-student-note {
-  margin-top: 1.2rem;
-  padding: 1rem 1.05rem;
-  border: 1px solid rgba(111, 16, 32, 0.12);
-  border-radius: 18px;
-  background: rgba(111, 16, 32, 0.06);
-}
-
-.attendance-student-note strong {
-  display: block;
-  margin-bottom: 0.35rem;
-  color: var(--navy);
-}
-
-.attendance-live-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
 }
 
 .attendance-student-modal {
@@ -1440,7 +1296,7 @@ p {
   padding: 1rem 1.05rem;
   border-radius: 18px;
   border: 1px solid var(--surface-line);
-  background: #f8f9fc;
+  background: var(--surface-tint);
 }
 
 .attendance-modal-note {
@@ -1496,8 +1352,8 @@ p {
   text-align: left;
   border: 1px solid var(--surface-line);
   border-radius: 16px;
-  background: #f8f9fc;
-  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+  background: var(--surface-tint);
+  transition: border-color var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
 
 .attendance-match-option:hover {
@@ -1598,7 +1454,7 @@ p {
   padding: 1.1rem 1.2rem;
   border: 1px solid var(--surface-line);
   border-radius: var(--radius-md);
-  background: #f7f8fc;
+  background: var(--surface-tint);
 }
 
 .attendance-block {
@@ -1626,7 +1482,7 @@ p {
   border: 1px solid var(--surface-line);
   border-radius: var(--radius-md);
   background: #ffffff;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .purpose-option span {
@@ -1731,7 +1587,7 @@ p {
   border: 1px dashed var(--surface-line-strong);
   border-radius: 18px;
   text-align: center;
-  background: #f7f8fc;
+  background: var(--surface-tint);
 }
 
 .attendance-empty-state.compact {
@@ -1751,7 +1607,7 @@ p {
   padding: 1rem;
   border-radius: 18px;
   border: 1px solid var(--surface-line);
-  background: #f8f9fc;
+  background: var(--surface-tint);
 }
 
 .visitor-feed-item p,
@@ -1775,7 +1631,7 @@ p {
 
 .attendance-side-note ol {
   padding-left: 1.1rem;
-  color: #475467;
+  color: var(--text-ink);
 }
 
 .profile-side-card,
@@ -1796,7 +1652,7 @@ p {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: rgba(15, 23, 42, 0.56);
+  background: var(--scrim);
   backdrop-filter: blur(8px);
 }
 
@@ -1806,7 +1662,7 @@ p {
   overflow-y: auto;
   border-radius: 28px;
   background: #ffffff;
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 28px 60px rgba(67, 17, 29, 0.2);
 }
 
 .student-profile-header {
@@ -1894,7 +1750,7 @@ p {
 .profile-stat-card {
   padding: 1rem;
   border-radius: 18px;
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px solid var(--surface-line);
 }
 
@@ -2022,7 +1878,7 @@ p {
 .profile-empty-state {
   padding: 1.5rem;
   border-radius: 18px;
-  background: #f7f8fc;
+  background: var(--surface-tint);
   border: 1px dashed var(--surface-line-strong);
 }
 
@@ -2368,7 +2224,7 @@ p {
   border-radius: 14px;
   background: linear-gradient(180deg, #fff8ef 0%, #f3e0bc 100%);
   box-shadow: 0 10px 22px rgba(67, 17, 29, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
   white-space: nowrap;
 }
 
@@ -2543,7 +2399,7 @@ p {
   color: var(--navy);
   font-weight: 700;
   background: linear-gradient(180deg, #fffdfa 0%, #f6ede7 100%);
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .monitoring-purpose-button:hover {
@@ -3110,10 +2966,9 @@ p {
   }
 
   .attendance-desk-grid,
-  .attendance-main-grid,
-  .active-visitors-grid,
-  .admin-profile-grid,
-  .monitoring-grid {
+.active-visitors-grid,
+.admin-profile-grid,
+.monitoring-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3135,24 +2990,23 @@ p {
   }
 
   .dashboard-mini-stats,
-  .dashboard-tool-grid,
-  .dashboard-report-filter-grid,
-  .dashboard-tracker-summary-grid,
-  .student-preview-details,
-  .profile-stat-grid,
-  .profile-analytics-grid,
-  .dashboard-top-grid,
-  .dashboard-directory-controls,
-  .attendance-status-grid,
-  .active-visitor-status-grid,
-  .attendance-control-actions,
-  .attendance-modal-grid,
-  .admin-profile-details-grid,
-  .admin-profile-credentials-grid,
-  .monitoring-stat-grid,
-  .monitoring-clock-grid,
-  .monitoring-purpose-grid,
-  .monitoring-register-grid {
+.dashboard-tool-grid,
+.dashboard-report-filter-grid,
+.dashboard-tracker-summary-grid,
+.student-preview-details,
+.profile-stat-grid,
+.profile-analytics-grid,
+.dashboard-top-grid,
+.dashboard-directory-controls,
+.active-visitor-status-grid,
+.attendance-control-actions,
+.attendance-modal-grid,
+.admin-profile-details-grid,
+.admin-profile-credentials-grid,
+.monitoring-stat-grid,
+.monitoring-clock-grid,
+.monitoring-purpose-grid,
+.monitoring-register-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3174,15 +3028,13 @@ p {
     flex-direction: column;
   }
 
-  .attendance-search-strip,
-  .attendance-live-header,
   .active-visitor-heading,
-  .monitoring-utility-row,
-  .monitoring-toolbar,
-  .monitoring-register-header,
-  .admin-profile-header,
-  .monitoring-register-brand,
-  .monitoring-register-upload {
+.monitoring-utility-row,
+.monitoring-toolbar,
+.monitoring-register-header,
+.admin-profile-header,
+.monitoring-register-brand,
+.monitoring-register-upload {
     flex-direction: column;
     align-items: stretch;
   }
@@ -3284,14 +3136,11 @@ p {
   }
 
   .attendance-hero,
-  .attendance-panel,
-  .attendance-side-note,
-  .dashboard-command-bar,
-  .attendance-banner,
-  .attendance-workspace-panel,
-  .attendance-control-panel,
-  .attendance-guide-card,
-  .attendance-live-card {
+.attendance-panel,
+.attendance-side-note,
+.dashboard-command-bar,
+.attendance-banner,
+.attendance-workspace-panel {
     padding: 1.1rem;
   }
 
@@ -3663,7 +3512,7 @@ p {
   background: linear-gradient(180deg, #fffdfb 0%, #fff7f2 100%);
   color: inherit;
   text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .catalog-result-card:hover,
@@ -4872,9 +4721,9 @@ p {
   padding-left: 1.35rem;
   background: #fffdfb;
   transition:
-    transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1),
-    box-shadow 0.24s ease,
-    border-color 0.24s ease;
+    transform var(--dur-enter) var(--ease-out),
+    box-shadow var(--dur-enter) var(--ease-out),
+    border-color var(--dur-enter) var(--ease-out);
 }
 
 .catalog-result-card::before {
@@ -4886,7 +4735,8 @@ p {
   height: 100%;
   background: linear-gradient(180deg, #9b2940, #6f1020);
   opacity: 0.9;
-  transition: width 0.24s ease;
+  transform-origin: left center;
+  transition: transform var(--dur-enter) var(--ease-out);
 }
 
 .catalog-result-card:hover {
@@ -4896,7 +4746,7 @@ p {
 }
 
 .catalog-result-card:hover::before {
-  width: 8px;
+  transform: scaleX(1.6);
 }
 
 .catalog-result-card:focus-visible {
@@ -4917,7 +4767,7 @@ p {
 
 .catalog-result-footer strong::after {
   content: "\2192";
-  transition: transform 0.24s ease;
+  transition: transform var(--dur-enter) var(--ease-out);
 }
 
 .catalog-result-card:hover .catalog-result-footer strong::after {
@@ -4926,7 +4776,7 @@ p {
 
 /* Detail field cards — quiet hover lift */
 .catalog-detail-field {
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
 }
 
 .catalog-detail-field:hover {
@@ -4960,4 +4810,680 @@ p {
   .catalog-result-footer strong::after {
     transition: none;
   }
+}
+
+/* ==========================================================================
+   Interaction & motion layer
+   - Hover lifts only on devices that truly hover (kiosk tablets get sticky
+     hover otherwise).
+   - Every pressable surface acknowledges the press immediately.
+   - Overlays enter from a slight scale, never from nothing.
+   ========================================================================== */
+
+@media (hover: none) {
+  .sidebar-link:hover,
+  .admin-footer-link:hover,
+  .dashboard-upload-tile:hover,
+  .dashboard-tool-tile:hover,
+  .dashboard-filter-chip:hover,
+  .active-purpose-chip:hover,
+  .active-visitor-card:hover,
+  .attendance-match-option:hover,
+  .purpose-option:hover,
+  .monitoring-toolbar-button:hover,
+  .monitoring-toolbar-link:hover,
+  .monitoring-purpose-button:hover,
+  .catalog-result-card:hover,
+  .catalog-related-item:hover,
+  .catalog-result-card:hover::before,
+  .catalog-result-card:hover .catalog-result-footer strong::after {
+    transform: none;
+  }
+}
+
+.btn {
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+.btn:not(:disabled):not(.disabled):active,
+.dashboard-filter-chip:active,
+.active-purpose-chip:active,
+.purpose-option:not(.purpose-option-disabled):active,
+.monitoring-purpose-button:active,
+.monitoring-toolbar-button:active,
+.monitoring-toolbar-link:active,
+.attendance-match-option:active,
+.sidebar-link:active,
+.admin-footer-link:active {
+  transform: scale(0.97);
+  transition-duration: var(--dur-press);
+}
+
+/* Large surfaces press less, or they visibly distort. */
+.dashboard-upload-tile:active,
+.dashboard-tool-tile:active,
+.active-visitor-card:active,
+.catalog-result-card:active,
+.catalog-related-item:active {
+  transform: scale(0.985);
+  transition-duration: var(--dur-press);
+}
+
+.student-profile-overlay {
+  animation: scrim-in var(--dur-base) var(--ease-out);
+}
+
+.student-profile-modal {
+  animation: surface-in var(--dur-enter) var(--ease-out) both;
+}
+
+.alert {
+  animation: alert-in var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Keep the fade so state changes still read, but drop all movement. */
+  .student-profile-modal,
+  .alert {
+    animation-name: fade-in;
+  }
+
+  .btn:not(:disabled):not(.disabled):active,
+  .dashboard-filter-chip:active,
+  .active-purpose-chip:active,
+  .purpose-option:not(.purpose-option-disabled):active,
+  .monitoring-purpose-button:active,
+  .monitoring-toolbar-button:active,
+  .monitoring-toolbar-link:active,
+  .attendance-match-option:active,
+  .sidebar-link:active,
+  .admin-footer-link:active,
+  .dashboard-upload-tile:active,
+  .dashboard-tool-tile:active,
+  .active-visitor-card:active,
+  .catalog-result-card:active,
+  .catalog-related-item:active,
+  .sidebar-link:hover,
+  .admin-footer-link:hover,
+  .dashboard-upload-tile:hover,
+  .dashboard-tool-tile:hover,
+  .dashboard-filter-chip:hover,
+  .active-purpose-chip:hover,
+  .active-visitor-card:hover,
+  .attendance-match-option:hover,
+  .purpose-option:hover,
+  .monitoring-toolbar-button:hover,
+  .monitoring-toolbar-link:hover,
+  .monitoring-purpose-button:hover,
+  .catalog-related-item:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Compact navigation
+   Below 1200px the sidebar becomes a sticky top bar; the links open as a
+   panel instead of pushing every page a full screen down.
+   ========================================================================== */
+
+.sidebar-menu-panel {
+  display: contents;
+}
+
+.sidebar-menu-toggle {
+  display: none;
+}
+
+.topbar-chip {
+  white-space: nowrap;
+}
+
+@media (max-width: 1199.98px) {
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    gap: 0;
+    padding: 0.7rem 1rem;
+    overflow: visible;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px);
+  }
+
+  .sidebar-brand {
+    padding: 0;
+  }
+
+  .sidebar-brand-logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .sidebar-brand-label {
+    margin-bottom: 0.1rem;
+  }
+
+  .sidebar-brand strong {
+    font-size: 0.98rem;
+  }
+
+  .sidebar-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 44px;
+    margin-left: auto;
+    padding: 0 1rem;
+    border: 1px solid var(--surface-line);
+    border-radius: 999px;
+    font-weight: 700;
+    color: var(--navy);
+    background: #ffffff;
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out),
+      transform var(--dur-press) var(--ease-out);
+  }
+
+  .sidebar-menu-toggle:active {
+    transform: scale(0.97);
+  }
+
+  .sidebar-menu-toggle[aria-expanded="true"] {
+    border-color: rgba(111, 16, 32, 0.24);
+    background: var(--surface-tint);
+  }
+
+  /* Three-bar icon that folds into an X; transforms only. */
+  .sidebar-menu-icon,
+  .sidebar-menu-icon::before,
+  .sidebar-menu-icon::after {
+    display: block;
+    width: 16px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    transition:
+      transform var(--dur-base) var(--ease-out),
+      opacity var(--dur-fast) var(--ease-out);
+  }
+
+  .sidebar-menu-icon {
+    position: relative;
+  }
+
+  .sidebar-menu-icon::before,
+  .sidebar-menu-icon::after {
+    content: "";
+    position: absolute;
+    left: 0;
+  }
+
+  .sidebar-menu-icon::before {
+    transform: translateY(-5px);
+  }
+
+  .sidebar-menu-icon::after {
+    transform: translateY(5px);
+  }
+
+  .sidebar-menu-toggle[aria-expanded="true"] .sidebar-menu-icon {
+    background: transparent;
+  }
+
+  .sidebar-menu-toggle[aria-expanded="true"] .sidebar-menu-icon::before {
+    transform: rotate(45deg);
+  }
+
+  .sidebar-menu-toggle[aria-expanded="true"] .sidebar-menu-icon::after {
+    transform: rotate(-45deg);
+  }
+
+  .sidebar-menu-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 0;
+    right: 0;
+    max-height: calc(100dvh - 72px);
+    overflow-y: auto;
+    padding: 1rem;
+    border-bottom: 1px solid var(--surface-line);
+    background: #ffffff;
+    box-shadow: 0 18px 32px rgba(67, 17, 29, 0.12);
+    transform-origin: top center;
+  }
+
+  .is-menu-open .sidebar-menu-panel {
+    display: grid;
+    gap: 1rem;
+    animation: menu-panel-in var(--dur-base) var(--ease-out);
+  }
+
+  .sidebar-nav-sections {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .sidebar-link {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .sidebar-employee-card {
+    margin-top: 0;
+  }
+
+  .sidebar-logout-button {
+    margin-top: 0;
+  }
+
+  .admin-topbar {
+    padding: 1.1rem 1.25rem 0.9rem;
+  }
+
+  /* Role and name already live in the menu panel. */
+  .admin-topbar-actions .topbar-chip:not(:first-child),
+  .admin-topbar-actions .topbar-avatar {
+    display: none;
+  }
+}
+
+@keyframes menu-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-menu-open .sidebar-menu-panel {
+    animation-name: fade-in;
+  }
+
+  .sidebar-menu-icon,
+  .sidebar-menu-icon::before,
+  .sidebar-menu-icon::after {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   Attendance Desk — one surface, three numbered steps read top to bottom.
+   Steps are separated by rules, not nested cards.
+   ========================================================================== */
+
+.attendance-workspace-panel .attendance-desk-grid {
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr);
+  gap: 1.75rem;
+}
+
+.attendance-flow {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.attendance-step {
+  display: grid;
+  gap: 0.75rem;
+  padding-bottom: 1.35rem;
+  border-bottom: 1px solid var(--surface-line);
+}
+
+.attendance-step:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.attendance-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.attendance-step-head label {
+  margin: 0;
+}
+
+.attendance-step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  background: var(--navy);
+}
+
+.attendance-step-hint {
+  color: var(--text-muted);
+}
+
+.attendance-flow .attendance-search-group {
+  width: 100%;
+}
+
+.attendance-flow .attendance-purpose-grid .purpose-option {
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 0;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  text-align: left;
+}
+
+.attendance-flow .attendance-purpose-grid .purpose-option span {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.attendance-flow .attendance-control-actions {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.attendance-flow .attendance-control-actions .btn {
+  min-height: 48px;
+}
+
+/* Disabled save reads as "not yet", not as broken. */
+.attendance-flow .btn-maroon:disabled {
+  opacity: 1;
+  color: var(--text-soft);
+  background: var(--surface-muted);
+  box-shadow: none;
+}
+
+.attendance-side {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.attendance-live-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--surface-line);
+  border-radius: 18px;
+  background: var(--surface-tint);
+}
+
+.attendance-live-strip span,
+.attendance-live-strip small {
+  display: block;
+}
+
+.attendance-live-strip strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--navy);
+}
+
+.attendance-live-strip small {
+  color: var(--text-muted);
+}
+
+.attendance-side .attendance-student-stage .student-preview-card,
+.attendance-side .attendance-student-stage .attendance-empty-state {
+  height: auto;
+}
+
+@media (max-width: 1199.98px) {
+  .attendance-workspace-panel .attendance-desk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .attendance-workspace-panel {
+    padding: 1rem;
+    border-radius: 22px;
+  }
+
+  .attendance-flow .attendance-purpose-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Touch and form ergonomics
+   -------------------------------------------------------------------------- */
+
+button,
+a,
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+}
+
+/* iOS Safari zooms the page when focusing inputs smaller than 16px. */
+@media (max-width: 767.98px) {
+  input.form-control,
+  select.form-select,
+  textarea.form-control {
+    font-size: 16px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Narrow-screen containment
+   -------------------------------------------------------------------------- */
+
+/* Grid/flex children default to min-width: auto, which lets one wide child
+   (a table, a long label) stretch the whole page past the viewport. */
+.admin-content > *,
+.dashboard-shell > *,
+.attendance-desk-shell > * {
+  min-width: 0;
+}
+
+@media (max-width: 1199.98px) {
+  .dashboard-command-bar {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .admin-content {
+    padding: 1rem;
+  }
+
+  .attendance-banner {
+    padding: 1.25rem 1rem;
+  }
+
+  .attendance-banner-title {
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Tracker table: stacked two-line cells keep rows short and scannable. */
+.tracker-time,
+.tracker-program {
+  display: grid;
+  gap: 0.1rem;
+  white-space: nowrap;
+}
+
+.tracker-time strong {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tracker-time small,
+.tracker-program small {
+  color: var(--text-muted);
+}
+
+.tracker-time-pending {
+  font-weight: 600;
+  color: var(--navy);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Dashboard charts
+   -------------------------------------------------------------------------- */
+
+.dashboard-top-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.visitor-status-stat {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  padding: 1.25rem 1.25rem 1.15rem;
+}
+
+.dashboard-top-grid > .dashboard-panel > .dashboard-empty-copy {
+  padding: 1rem 1.25rem;
+}
+
+.visitor-status-hero strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 3.25rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+}
+
+.visitor-status-hero span {
+  color: var(--text-muted);
+}
+
+.visitor-status-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.visitor-status-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #9b2940;
+  transform-origin: left center;
+}
+
+.visitor-status-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+.visitor-status-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--surface-line);
+}
+
+.visitor-status-list div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.visitor-status-list dt {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.visitor-status-list dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-panel-total {
+  text-align: right;
+}
+
+.dashboard-panel-total strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-panel-total span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 1199.98px) {
+  .dashboard-top-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .dashboard-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.catalog-result-footer strong {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Dialog panels take programmatic focus on open; the ring belongs on controls. */
+.student-profile-modal:focus {
+  outline: none;
 }

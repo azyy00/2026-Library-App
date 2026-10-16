@@ -2,7 +2,7 @@ import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import CatalogStandaloneShell from '../components/CatalogStandaloneShell';
 import Skeleton from '../components/Skeleton';
-import { CATALOG_SEARCH_FILTERS, buildCatalogIndex, searchCatalogBooks } from '../data/bookCatalog';
+import { CATALOG_SEARCH_FILTERS, buildCatalogIndex, searchCatalogBooks, formatSubjectLabel } from '../data/bookCatalog';
 import { bookApi } from '../services/api';
 
 const DEFAULT_POPULAR_BOOK_LIMIT = 8;
@@ -180,7 +180,7 @@ function BookCatalogPage() {
                   <p>{book.author}</p>
                   <div className="catalog-result-subjects">
                     {book.subjects.slice(0, 3).map((subject) => (
-                      <span key={`${book.id}-${subject}`} className="catalog-tag">{subject}</span>
+                      <span key={`${book.id}-${subject}`} className="catalog-tag">{formatSubjectLabel(subject)}</span>
                     ))}
                   </div>
                   <div className="catalog-result-footer">
@@ -214,7 +214,7 @@ function BookCatalogPage() {
                   <p>{book.author}</p>
                   <div className="catalog-result-subjects">
                     {book.subjects.slice(0, 3).map((subject) => (
-                      <span key={`${book.id}-${subject}`} className="catalog-tag">{subject}</span>
+                      <span key={`${book.id}-${subject}`} className="catalog-tag">{formatSubjectLabel(subject)}</span>
                     ))}
                   </div>
                   <div className="catalog-result-footer">

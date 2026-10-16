@@ -107,9 +107,22 @@ const clampCopies = (value) => {
 
   return Math.max(1, Math.round(numericValue));
 };
+// Spreadsheet cells list one author per line. Keep those breaks as "; " so
+// names stay distinguishable instead of collapsing into one run of words.
+const sanitizeAuthorList = (value, fallback = '') => {
+  const authors = `${value ?? ''}`
+    .split(/\r?\n|;/)
+    .map(normalizeSpace)
+    .filter(Boolean);
+
+  return authors.length > 0 ? authors.join('; ') : fallback;
+};
+// The separator is display-only: keying on it would turn a re-import of an
+// existing record into a duplicate.
+const authorKeyText = (author) => normalizeKeyText(`${author ?? ''}`.replace(/;/g, ' '));
 const buildCatalogKey = (book) => crypto.createHash('sha256').update([
   normalizeKeyText(book.title),
-  normalizeKeyText(book.author),
+  authorKeyText(book.author),
   normalizeKeyText(book.edition),
   normalizeKeyText(book.volume),
   normalizeKeyText(book.copyright)
@@ -121,7 +134,7 @@ const normalizeBookPayload = (payload = {}) => {
   const subject3 = sanitizeText(payload.subject3 ?? payload.subject_3 ?? payload.subjects?.[2], '');
   const normalizedBook = {
     title: sanitizeText(payload.title, ''),
-    author: sanitizeText(payload.author, ''),
+    author: sanitizeAuthorList(payload.author, ''),
     edition: sanitizeText(payload.edition, 'N/A'),
     volume: sanitizeText(payload.volume, 'N/A'),
     copyright: sanitizeText(payload.copyright, 'N/A'),

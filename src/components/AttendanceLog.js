@@ -35,9 +35,30 @@ const CUTOFF_HOUR = 17;
 const CUTOFF_MINUTE = 0;
 const CUTOFF_LABEL = '5:00 PM';
 
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
+// The backend enforces the cutoff in Manila time, so the desk must read the same
+// clock regardless of the time zone configured on the desk computer.
+const getManilaClock = (date) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: MANILA_TIME_ZONE,
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const read = (type) => Number(parts.find((part) => part.type === type)?.value || 0);
+
+  return { hours: read('hour'), minutes: read('minute') };
+};
+
+const formatManilaTime = (date) => date.toLocaleTimeString([], {
+  timeZone: MANILA_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit'
+});
+
 const isAfterCutoffTime = (date) => {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
+  const { hours, minutes } = getManilaClock(date);
 
   return hours > CUTOFF_HOUR || (hours === CUTOFF_HOUR && minutes >= CUTOFF_MINUTE);
 };
@@ -92,7 +113,7 @@ function AttendanceLog() {
     try {
       const response = await attendanceApi.getActive();
       setActiveVisitors(response.data);
-      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastUpdated(formatManilaTime(new Date()));
     } catch (error) {
       console.error('Error fetching active visitors:', error);
       setFeedback({
@@ -195,10 +216,7 @@ function AttendanceLog() {
 
       setFeedback({
         type: 'success',
-        text: `${response.data.student_name} checked in successfully at ${new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        })}.`
+        text: `${response.data.student_name} checked in successfully at ${formatManilaTime(new Date())}.`
       });
       setIsStudentModalOpen(false);
       resetAttendanceForm(true);
@@ -229,18 +247,19 @@ function AttendanceLog() {
       ? searchMatches
       : [];
   const heroDate = screenTime.toLocaleDateString([], {
+    timeZone: MANILA_TIME_ZONE,
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   });
-  const deskTime = screenTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const deskTime = formatManilaTime(screenTime);
 
   return (
     <div className="attendance-desk-shell">
       <section className="attendance-banner">
         <p className="attendance-banner-kicker">Goa Community College Library</p>
-        <h1>ATTENDANCE</h1>
+        <p className="attendance-banner-title" aria-hidden="true">ATTENDANCE</p>
         <div className="attendance-banner-meta">
           <span>{heroDate}</span>
           <span>{deskTime}</span>
@@ -250,78 +269,22 @@ function AttendanceLog() {
 
       <section className="attendance-workspace-panel">
         <div className="attendance-desk-grid">
-          <aside className="attendance-control-panel">
-            <div className="attendance-control-head">
-              <p className="section-eyebrow">The Active Desk</p>
-              <h3>The active desk</h3>
-              <p className="text-muted mb-0">
-                Select a purpose, load the student record, then save the attendance transaction from this panel.
-              </p>
-            </div>
-
-            <div className="attendance-control-stat">
-              <span>Open visitors</span>
-              <strong>{activeVisitors.length}</strong>
-              <small>{lastUpdated ? `Updated ${lastUpdated}` : 'Waiting for live data'}</small>
-            </div>
-
-            <div className="attendance-purpose-card">
-              <h4>Select Purpose</h4>
-              <div className="purpose-grid attendance-purpose-grid">
-                {PURPOSE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`purpose-option ${purpose === option.value ? 'purpose-option-active' : ''} ${isAttendanceClosed ? 'purpose-option-disabled' : ''}`}
-                    onClick={() => setPurpose(option.value)}
-                    disabled={isAttendanceClosed}
-                  >
-                    <strong>{option.shortLabel}</strong>
-                  </button>
-                ))}
+          <div className="attendance-flow">
+            <div className="attendance-step">
+              <div className="attendance-step-head">
+                <span className="attendance-step-number" aria-hidden="true">1</span>
+                <label htmlFor="attendance-search-input">Find the student</label>
               </div>
-            </div>
-
-            <div className="attendance-control-actions">
-              <button
-                type="button"
-                className="btn btn-maroon"
-                onClick={handleCheckIn}
-                disabled={isSubmitting || !purpose || !student || isAttendanceClosed}
-              >
-                {isAttendanceClosed ? `Closed at ${CUTOFF_LABEL}` : isSubmitting ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => resetAttendanceForm()}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-            </div>
-
-            <div className="attendance-control-note">
-              <span>Current purpose</span>
-              <strong>{selectedPurpose ? selectedPurpose.shortLabel : 'No purpose selected'}</strong>
-              <small>{selectedPurpose ? selectedPurpose.description : 'Pick one of the attendance categories.'}</small>
-            </div>
-          </aside>
-
-          <div className="attendance-main-panel">
-            <div className="attendance-search-strip">
-              <div className="attendance-search-copy">
-                <p className="section-eyebrow">Search Student</p>
-                <h3>Search student</h3>
-              </div>
-
               <div className="input-group attendance-search-group">
                 <input
-                  type="text"
+                  id="attendance-search-input"
+                  type="search"
                   className="form-control"
                   value={studentId}
                   onChange={(event) => setStudentId(event.target.value)}
-                  placeholder="Enter ID or Name"
+                  placeholder="Student ID or full name"
+                  autoComplete="off"
+                  enterKeyHint="search"
                   onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
                 />
                 <button
@@ -333,120 +296,147 @@ function AttendanceLog() {
                   {isSearching ? 'Searching...' : 'Search'}
                 </button>
               </div>
+              <small className="attendance-step-hint">The student number gives the most exact match.</small>
             </div>
 
-            <div className="attendance-status-grid">
-              <div className="attendance-desk-card">
-                <span className="summary-label">Active now</span>
-                <strong>{activeVisitors.length}</strong>
-                <small>Students currently inside the library.</small>
+            <div className="attendance-step">
+              <div className="attendance-step-head">
+                <span className="attendance-step-number" aria-hidden="true">2</span>
+                <span id="attendance-purpose-label">Choose the visit purpose</span>
               </div>
-              <div className="attendance-desk-card">
-                <span className="summary-label">Selected purpose</span>
-                <strong>{selectedPurpose ? selectedPurpose.shortLabel : 'Not selected'}</strong>
-                <small>{selectedPurpose ? selectedPurpose.description : 'Choose the visit purpose before saving.'}</small>
+              <div
+                className="purpose-grid attendance-purpose-grid"
+                role="radiogroup"
+                aria-labelledby="attendance-purpose-label"
+              >
+                {PURPOSE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={purpose === option.value}
+                    className={`purpose-option ${purpose === option.value ? 'purpose-option-active' : ''} ${isAttendanceClosed ? 'purpose-option-disabled' : ''}`}
+                    onClick={() => setPurpose(option.value)}
+                    disabled={isAttendanceClosed}
+                  >
+                    <strong>{option.shortLabel}</strong>
+                    <span>{option.description}</span>
+                  </button>
+                ))}
               </div>
-              <div className="attendance-desk-card">
-                <span className="summary-label">Current status</span>
-                <strong>{isAttendanceClosed ? 'Desk closed after 5:00 PM' : student ? 'Record ready to save' : 'Waiting for search'}</strong>
-                <small>
-                  {isAttendanceClosed
-                    ? 'New attendance transactions are disabled after the cutoff.'
-                    : student
-                      ? `${student.first_name} ${student.last_name} is loaded for attendance.`
-                      : 'Search by student ID or full name.'}
-                </small>
+            </div>
+
+            <div className="attendance-step">
+              <div className="attendance-step-head">
+                <span className="attendance-step-number" aria-hidden="true">3</span>
+                <span>Save the visit</span>
               </div>
+              <div className="attendance-control-actions">
+                <button
+                  type="button"
+                  className="btn btn-maroon"
+                  onClick={handleCheckIn}
+                  disabled={isSubmitting || !purpose || !student || isAttendanceClosed}
+                >
+                  {isAttendanceClosed ? `Closed at ${CUTOFF_LABEL}` : isSubmitting ? 'Saving...' : 'Save check-in'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => resetAttendanceForm()}
+                  disabled={isSubmitting}
+                >
+                  Clear
+                </button>
+              </div>
+              <small className="attendance-step-hint" aria-live="polite">
+                {isAttendanceClosed
+                  ? 'New check-ins are disabled after the cutoff.'
+                  : !student && !purpose
+                    ? 'Find a student and choose a purpose to enable saving.'
+                    : !student
+                      ? 'Find a student to enable saving.'
+                      : !purpose
+                        ? 'Choose a purpose to enable saving.'
+                        : `Ready to check in ${student.first_name} ${student.last_name} for ${selectedPurpose.shortLabel.toLowerCase()}.`}
+              </small>
             </div>
 
             {isAttendanceClosed && (
-              <div className="alert alert-warning attendance-alert" role="alert">
+              <div className="alert alert-warning attendance-alert mb-0" role="alert">
                 Attendance transactions are closed after {CUTOFF_LABEL}. Any visitor still active at the cutoff is checked out automatically.
               </div>
             )}
 
             {feedback && (
-              <div className={`alert alert-${feedback.type} attendance-alert`} role="alert">
+              <div className={`alert alert-${feedback.type} attendance-alert mb-0`} role="alert">
                 {feedback.text}
               </div>
             )}
+          </div>
 
-            <div className="attendance-main-grid">
-              <div className="attendance-guide-card">
-                <p className="section-eyebrow">Desktop Guide</p>
-                <h4>Desk top guide here</h4>
-                <ol className="mb-0">
-                  <li>Search the student using the official student number when possible.</li>
-                  <li>Confirm the purpose on the left panel before saving the attendance record.</li>
-                  <li>Review course and section details in the student preview before final submission.</li>
-                  <li>Open the active visitor list below when you need a full live view of open visits.</li>
-                </ol>
-
-                <Link to="/active" className="btn btn-outline-maroon mt-4">
-                  Open full active visitor list
-                </Link>
+          <div className="attendance-side">
+            <div className="attendance-live-strip">
+              <div>
+                <span className="summary-label">Inside the library</span>
+                <strong>{activeVisitors.length}</strong>
+                <small>{lastUpdated ? `Updated ${lastUpdated}` : 'Waiting for live data'}</small>
               </div>
+              <Link to="/active" className="btn btn-outline-maroon">
+                View visitors
+              </Link>
+            </div>
 
-              <div className="attendance-student-stage">
-                {student ? (
-                  <div className="student-preview-card">
-                    <div className="student-preview-header">
-                      <div className="student-preview-avatar">
-                        {student.profile_image && showStudentImage ? (
-                          <img
-                            src={buildAssetUrl(student.profile_image)}
-                            alt={`${student.first_name} ${student.last_name}`}
-                            onError={() => setShowStudentImage(false)}
-                          />
-                        ) : (
-                          <span>{student.first_name?.[0] || 'S'}{student.last_name?.[0] || 'T'}</span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="section-eyebrow mb-2">Loaded student</p>
-                        <h4 className="mb-1">{student.first_name} {student.last_name}</h4>
-                        <p className="text-muted mb-0">{student.student_id}</p>
-                      </div>
+            <div className="attendance-student-stage">
+              {student ? (
+                <div className="student-preview-card">
+                  <div className="student-preview-header">
+                    <div className="student-preview-avatar">
+                      {student.profile_image && showStudentImage ? (
+                        <img
+                          src={buildAssetUrl(student.profile_image)}
+                          alt={`${student.first_name} ${student.last_name}`}
+                          onError={() => setShowStudentImage(false)}
+                        />
+                      ) : (
+                        <span>{student.first_name?.[0] || 'S'}{student.last_name?.[0] || 'T'}</span>
+                      )}
                     </div>
-
-                    <div className="student-preview-details">
-                      <div>
-                        <span>Course</span>
-                        <strong>{student.course}</strong>
-                      </div>
-                      <div>
-                        <span>Year and section</span>
-                        <strong>{student.year_level}-{student.section}</strong>
-                      </div>
-                      <div>
-                        <span>Email</span>
-                        <strong>{student.email || 'No email on file'}</strong>
-                      </div>
-                    </div>
-
-                    <div className="attendance-student-note">
-                      <strong>{isAttendanceClosed ? `Transactions closed at ${CUTOFF_LABEL}` : 'Ready for attendance save'}</strong>
-                      <p className="mb-0">
-                        {isAttendanceClosed
-                          ? 'Search remains available, but no new attendance transactions can be saved after the cutoff.'
-                          : 'If everything looks correct, use the Save button in the left panel to record this visit.'}
-                      </p>
+                    <div>
+                      <p className="section-eyebrow mb-2">Loaded student</p>
+                      <h4 className="mb-1">{student.first_name} {student.last_name}</h4>
+                      <p className="text-muted mb-0">{student.student_id}</p>
                     </div>
                   </div>
-                ) : (
-                  <div className="attendance-empty-state attendance-student-empty">
-                    <h5 className="mb-2">No student selected yet</h5>
-                    <p className="text-muted mb-3">
-                      Search the student record on the top right, then return to the left panel to save the attendance entry.
-                    </p>
-                    {searchAttempted && (
-                      <Link to="/register" className="btn btn-outline-maroon">
-                        Register new student
-                      </Link>
-                    )}
+
+                  <div className="student-preview-details">
+                    <div>
+                      <span>Course</span>
+                      <strong>{student.course}</strong>
+                    </div>
+                    <div>
+                      <span>Year and section</span>
+                      <strong>{student.year_level}-{student.section}</strong>
+                    </div>
+                    <div>
+                      <span>Email</span>
+                      <strong>{student.email || 'No email on file'}</strong>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="attendance-empty-state attendance-student-empty">
+                  <h5 className="mb-2">No student loaded</h5>
+                  <p className="text-muted mb-3">
+                    Search by student number or name. The matching record appears here for a final check before saving.
+                  </p>
+                  {searchAttempted && (
+                    <Link to="/register" className="btn btn-outline-maroon">
+                      Register new student
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

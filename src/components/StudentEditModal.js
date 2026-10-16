@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { buildAssetUrl } from '../services/api';
+import useDialog from '../hooks/useDialog';
 
 const createFormState = (student) => ({
   student_id: student?.student_id || '',
@@ -25,6 +26,8 @@ function StudentEditModal({ student, isSaving, onClose, onSave }) {
     setImagePreview(student?.profile_image ? buildAssetUrl(student.profile_image) : '');
     setSubmitMessage('');
   }, [student]);
+
+  const dialogRef = useDialog(Boolean(student), onClose);
 
   if (!student) {
     return null;
@@ -83,7 +86,7 @@ function StudentEditModal({ student, isSaving, onClose, onSave }) {
 
   return (
     <div className="student-profile-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-student-title">
-      <div className="student-profile-modal student-edit-modal">
+      <div className="student-profile-modal student-edit-modal" ref={dialogRef} tabIndex={-1}>
         <div className="student-profile-header">
           <div>
             <p className="profile-eyebrow">Student Record Update</p>

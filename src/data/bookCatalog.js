@@ -427,3 +427,7 @@ export const parseBookInventoryWorkbook = (arrayBuffer) => {
     }))
     .sort((left, right) => left.title.localeCompare(right.title));
 };
+
+// Subject headings use "--" between levels (e.g. "Science--Social aspects").
+// Show the hierarchy with a readable separator; keep the raw value for search.
+export const formatSubjectLabel = (subject) => `${subject ?? ''}`.replace(/\s*--\s*/g, ' › ');

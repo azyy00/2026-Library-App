@@ -480,6 +480,10 @@ router.get('/active', (req, res) => {
     const query = `
         SELECT al.*, s.student_id, s.first_name, s.last_name, s.middle_name, s.course, s.year_level, s.section,
                s.email, s.gender, s.address, s.profile_image,
+               -- Times are stored as Manila wall-clock values. Return them as plain
+               -- strings (like /tracker) so the server's own time zone can't shift them.
+               DATE_FORMAT(al.check_in, '%Y-%m-%d %H:%i:%s') AS check_in,
+               DATE_FORMAT(al.check_out, '%Y-%m-%d %H:%i:%s') AS check_out,
                GREATEST(TIMESTAMPDIFF(MINUTE, al.check_in, ?), 0) as minutes_inside
         FROM attendance_logs al
         JOIN students s ON al.student_id = s.id
@@ -680,8 +684,8 @@ router.get('/export', (req, res) => {
             s.year_level,
             s.section,
             al.purpose,
-            al.check_in,
-            al.check_out,
+            DATE_FORMAT(al.check_in, '%Y-%m-%d %H:%i:%s') AS check_in,
+            DATE_FORMAT(al.check_out, '%Y-%m-%d %H:%i:%s') AS check_out,
             CASE 
                 WHEN al.check_out IS NULL THEN 'Active'
                 ELSE 'Completed'

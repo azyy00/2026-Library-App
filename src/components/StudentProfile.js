@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { buildAssetUrl } from '../services/api';
+import useDialog from '../hooks/useDialog';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -89,6 +90,8 @@ function StudentProfile({ studentData, onClose, onEditStudent, onDeleteStudent, 
   }, [completedActivities]);
   const favoritePurpose = purposeBreakdown[0]?.purpose || 'No data';
 
+  const dialogRef = useDialog(Boolean(studentData && student), onClose);
+
   if (!studentData || !student) {
     return null;
   }
@@ -127,12 +130,12 @@ function StudentProfile({ studentData, onClose, onEditStudent, onDeleteStudent, 
   };
 
   return (
-    <div className="student-profile-overlay" role="dialog" aria-modal="true">
-      <div className="student-profile-modal">
+    <div className="student-profile-overlay" role="dialog" aria-modal="true" aria-labelledby="student-profile-title">
+      <div className="student-profile-modal" ref={dialogRef} tabIndex={-1}>
         <div className="student-profile-header">
           <div>
             <p className="profile-eyebrow">Student Activity Profile</p>
-            <h3 className="mb-1">{fullName}</h3>
+            <h3 id="student-profile-title" className="mb-1">{fullName}</h3>
             <p className="text-muted mb-0">
               {student.student_id} | {student.course} | Year {student.year_level}-{student.section}
             </p>

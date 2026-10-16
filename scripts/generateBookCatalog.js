@@ -13,6 +13,14 @@ const sanitizeField = (value, fallback = 'N/A') => {
   const cleaned = normalizeSpace(value);
   return cleaned || fallback;
 };
+const sanitizeAuthorList = (value, fallback = 'N/A') => {
+  const authors = `${value ?? ''}`
+    .split(/\r?\n|;/)
+    .map(normalizeSpace)
+    .filter(Boolean);
+
+  return authors.length > 0 ? authors.join('; ') : fallback;
+};
 const getYearFromSheetName = (sheetName) => {
   const match = `${sheetName}`.match(/(20\d{2})/);
   return match ? match[1] : sheetName;
@@ -64,7 +72,8 @@ for (const sheetName of workbook.SheetNames) {
       return;
     }
 
-    const author = sanitizeField(pickFirst(row, ['AUTHOR']));
+    // Cells list one author per line; keep the breaks as "; " separators.
+    const author = sanitizeAuthorList(row.AUTHOR);
     const edition = sanitizeField(pickFirst(row, ['EDITON', 'EDITION']));
     const volume = sanitizeField(pickFirst(row, ['VOLUME']));
     const copyright = sanitizeField(pickFirst(row, ['COPYRIGHT']));

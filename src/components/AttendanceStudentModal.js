@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { buildAssetUrl } from '../services/api';
+import useDialog from '../hooks/useDialog';
 
 function AttendanceStudentModal({
   student,
@@ -22,6 +23,8 @@ function AttendanceStudentModal({
     setShowImage(Boolean(profileImageUrl));
   }, [profileImageUrl]);
 
+  const dialogRef = useDialog(Boolean(isOpen && student), onClose);
+
   if (!isOpen || !student) {
     return null;
   }
@@ -35,7 +38,7 @@ function AttendanceStudentModal({
 
   return (
     <div className="student-profile-overlay" role="dialog" aria-modal="true" aria-labelledby="attendance-student-title">
-      <div className="student-profile-modal attendance-student-modal">
+      <div className="student-profile-modal attendance-student-modal" ref={dialogRef} tabIndex={-1}>
         <div className="student-profile-header">
           <div>
             <p className="profile-eyebrow">Student Search Result</p>
