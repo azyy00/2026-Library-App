@@ -18,8 +18,10 @@
   --radius-lg: 22px;
   --radius-md: 18px;
   --radius-sm: 14px;
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
-  --font-body: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  /* Libre Caslon Text: a classic book face for headings and book titles.
+     Public Sans: a plain, sturdy institutional face for everything else. */
+  --font-display: "Libre Caslon Text", Georgia, "Times New Roman", serif;
+  --font-body: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
 
   /* Neutrals tinted toward the maroon brand hue, replacing stray cool slates. */
   --surface-tint: #faf6f7;
@@ -519,46 +521,117 @@ p {
   color: var(--text-muted);
 }
 
+/* Tool tiles: icon-first launchers. Colour marks the job, not decoration:
+   desk (maroon), books (gold), student data (teal), reports (blue). */
 .dashboard-tool-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: 0.75rem;
 }
 
-.dashboard-upload-tile,
 .dashboard-tool-tile {
+  --tool-top: #b4475c;
+  --tool-bottom: #9b2940;
+  --tool-glow: rgba(155, 41, 64, 0.3);
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
-  min-height: 88px;
-  padding: 0.95rem 1rem;
-  text-align: left;
-  border: 1px solid var(--surface-line);
-  border-radius: var(--radius-md);
-  color: var(--text-main);
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 112px;
+  padding: 1rem 0.75rem 0.9rem;
+  border: 0;
+  border-radius: 18px;
+  font: inherit;
+  text-align: center;
   text-decoration: none;
+  color: var(--text-main);
   background: #ffffff;
-  box-shadow: var(--shadow-tight);
-  transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+  /* Layered shadow instead of a hard border: a hairline ring plus soft depth. */
+  box-shadow:
+    0 0 0 1px rgba(67, 17, 29, 0.08),
+    0 1px 2px rgba(67, 17, 29, 0.06),
+    0 6px 16px rgba(67, 17, 29, 0.05);
+  cursor: pointer;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
-.dashboard-upload-tile:hover,
-.dashboard-tool-tile:hover {
-  transform: translateY(-2px);
-  border-color: var(--surface-line-strong);
+.dashboard-tool-tile > span:last-of-type {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
-.dashboard-upload-tile span,
-.dashboard-tool-tile span {
-  font-weight: 700;
+.tool-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  /* Concentric with the tile: 18px tile radius minus breathing room. */
+  border-radius: 14px;
+  color: #ffffff;
+  background: linear-gradient(160deg, var(--tool-top), var(--tool-bottom));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 4px 10px var(--tool-glow);
+  transition: transform var(--dur-base) var(--ease-out);
 }
 
-.dashboard-upload-tile small,
-.dashboard-tool-tile small {
-  color: var(--text-muted);
+.tool-icon svg {
+  width: 26px;
+  height: 26px;
 }
 
+/* Bottom stops keep white icons at 3:1 or better against the badge. */
+.tool-tone-desk {
+  --tool-top: #b4475c;
+  --tool-bottom: #9b2940;
+  --tool-glow: rgba(155, 41, 64, 0.3);
+}
+
+.tool-tone-books {
+  --tool-top: #b98428;
+  --tool-bottom: #a8771c;
+  --tool-glow: rgba(168, 119, 28, 0.3);
+}
+
+.tool-tone-students {
+  --tool-top: #1f9f90;
+  --tool-bottom: #007a6e;
+  --tool-glow: rgba(0, 122, 110, 0.3);
+}
+
+.tool-tone-reports {
+  --tool-top: #6c7cc2;
+  --tool-bottom: #4a5aa3;
+  --tool-glow: rgba(74, 90, 163, 0.3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-tool-tile:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px rgba(67, 17, 29, 0.1),
+      0 2px 4px rgba(67, 17, 29, 0.06),
+      0 12px 24px rgba(67, 17, 29, 0.08);
+  }
+
+  .dashboard-tool-tile:hover .tool-icon {
+    transform: scale(1.06);
+  }
+}
+
+.dashboard-tool-tile:focus-visible,
+.dashboard-upload-tile:focus-within {
+  outline: 3px solid rgba(111, 16, 32, 0.28);
+  outline-offset: 2px;
+}
+
+/* The file input covers the whole tile so a tap anywhere opens the picker. */
 .dashboard-upload-tile input {
   position: absolute;
   inset: 0;
@@ -568,8 +641,27 @@ p {
   cursor: pointer;
 }
 
-.dashboard-tool-link {
-  color: var(--text-main);
+@media (max-width: 380px) {
+  .dashboard-tool-tile {
+    min-height: 100px;
+    padding: 0.85rem 0.4rem 0.75rem;
+  }
+
+  .tool-icon {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-tool-tile,
+  .tool-icon {
+    transition: none;
+  }
+
+  .dashboard-tool-tile:hover .tool-icon {
+    transform: none;
+  }
 }
 
 .dashboard-card-grid {
@@ -2966,9 +3058,9 @@ p {
   }
 
   .attendance-desk-grid,
-.active-visitors-grid,
-.admin-profile-grid,
-.monitoring-grid {
+  .active-visitors-grid,
+  .admin-profile-grid,
+  .monitoring-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2990,23 +3082,22 @@ p {
   }
 
   .dashboard-mini-stats,
-.dashboard-tool-grid,
-.dashboard-report-filter-grid,
-.dashboard-tracker-summary-grid,
-.student-preview-details,
-.profile-stat-grid,
-.profile-analytics-grid,
-.dashboard-top-grid,
-.dashboard-directory-controls,
-.active-visitor-status-grid,
-.attendance-control-actions,
-.attendance-modal-grid,
-.admin-profile-details-grid,
-.admin-profile-credentials-grid,
-.monitoring-stat-grid,
-.monitoring-clock-grid,
-.monitoring-purpose-grid,
-.monitoring-register-grid {
+  .dashboard-report-filter-grid,
+  .dashboard-tracker-summary-grid,
+  .student-preview-details,
+  .profile-stat-grid,
+  .profile-analytics-grid,
+  .dashboard-top-grid,
+  .dashboard-directory-controls,
+  .active-visitor-status-grid,
+  .attendance-control-actions,
+  .attendance-modal-grid,
+  .admin-profile-details-grid,
+  .admin-profile-credentials-grid,
+  .monitoring-stat-grid,
+  .monitoring-clock-grid,
+  .monitoring-purpose-grid,
+  .monitoring-register-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3029,12 +3120,12 @@ p {
   }
 
   .active-visitor-heading,
-.monitoring-utility-row,
-.monitoring-toolbar,
-.monitoring-register-header,
-.admin-profile-header,
-.monitoring-register-brand,
-.monitoring-register-upload {
+  .monitoring-utility-row,
+  .monitoring-toolbar,
+  .monitoring-register-header,
+  .admin-profile-header,
+  .monitoring-register-brand,
+  .monitoring-register-upload {
     flex-direction: column;
     align-items: stretch;
   }
@@ -3136,11 +3227,11 @@ p {
   }
 
   .attendance-hero,
-.attendance-panel,
-.attendance-side-note,
-.dashboard-command-bar,
-.attendance-banner,
-.attendance-workspace-panel {
+  .attendance-panel,
+  .attendance-side-note,
+  .dashboard-command-bar,
+  .attendance-banner,
+  .attendance-workspace-panel {
     padding: 1.1rem;
   }
 
@@ -5486,4 +5577,11 @@ label {
 /* Dialog panels take programmatic focus on open; the ring belongs on controls. */
 .student-profile-modal:focus {
   outline: none;
+}
+
+/* Phones: stat tiles two-up instead of four full-width rows. */
+@media (max-width: 767.98px) {
+  .dashboard-mini-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
