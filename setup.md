@@ -110,7 +110,7 @@ For the least setup work, use a **MySQL-compatible online database** instead of 
    Framework Preset: Create React App
    Build Command: npm run build
    Output Directory: build
-   Node.js Version: 20.x
+   Node.js Version: 24.x
    ```
 4. Add this environment variable:
    ```text
@@ -136,7 +136,7 @@ For the least setup work, use a **MySQL-compatible online database** instead of 
    Install Command: npm install
    Build Command: leave empty
    Output Directory: leave empty
-   Node.js Version: 20.x
+   Node.js Version: 24.x
    ```
 4. Add these environment variables in Vercel:
    ```env

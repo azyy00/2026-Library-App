@@ -9,7 +9,7 @@ Staff manage everything from a protected console — students check in and out a
 
 <br />
 
-![Node](https://img.shields.io/badge/Node.js-20.x-3C873A?style=flat-square&logo=node.js&logoColor=white)
+![Node](https://img.shields.io/badge/Node.js-24.x-3C873A?style=flat-square&logo=node.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-1E1E1E?style=flat-square&logo=react&logoColor=61DAFB)
 ![Express](https://img.shields.io/badge/Express-4-1E1E1E?style=flat-square&logo=express&logoColor=white)
 ![Database](https://img.shields.io/badge/TiDB%20%2F%20MySQL-800000?style=flat-square&logo=mysql&logoColor=white)
@@ -260,7 +260,7 @@ The backend auto-creates and seeds `employee_accounts` on first run. A local dev
 
 ## 💻 Local Setup
 
-**Requirements** — Node.js 20.x · npm · MySQL (or a TiDB-compatible database)
+**Requirements** — Node.js 24.x · npm · MySQL (or a TiDB-compatible database)
 
 ```bash
 # 1 — install
@@ -310,7 +310,7 @@ Deployed as **two Vercel projects** — a static React build from the repo root,
 | Project | Notes |
 |---------|-------|
 | **Frontend** | Create React App · build `npm run build` → `build` · root `vercel.json` rewrites all paths to `index.html` |
-| **Backend** | Express via `backend/api/index.js` · Node 20.x · rewrites in `backend/vercel.json` |
+| **Backend** | Express via `backend/api/index.js` · Node 24.x · rewrites in `backend/vercel.json` |
 
 <details>
 <summary><b>Production environment variables</b></summary>
