@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import CatalogStandaloneShell from '../components/CatalogStandaloneShell';
-import { buildCatalogIndex, getRelatedCatalogBooks } from '../data/bookCatalog';
+import { buildCatalogIndex, getRelatedCatalogBooks, formatSubjectLabel } from '../data/bookCatalog';
 import { bookApi } from '../services/api';
 import { CITATION_FORMATS, generateBookCitation } from '../utils/bookCitation';
 
@@ -207,7 +207,7 @@ function BookCatalogDetailPage() {
                 <span>Subjects</span>
                 <div className="catalog-result-subjects">
                   {indexedSelectedBook.subjects.map((subject) => (
-                    <span key={`${indexedSelectedBook.id}-${subject}`} className="catalog-tag">{subject}</span>
+                    <span key={`${indexedSelectedBook.id}-${subject}`} className="catalog-tag">{formatSubjectLabel(subject)}</span>
                   ))}
                 </div>
               </div>

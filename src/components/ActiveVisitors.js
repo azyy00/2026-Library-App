@@ -28,8 +28,18 @@ const formatDateTime = (value) => {
     return 'Pending';
   }
 
-  return new Date(value).toLocaleString([], {
-    timeZone: MANILA_TIME_ZONE,
+  // The API returns Manila wall-clock strings ("2026-10-16 10:27:51"). Format
+  // the digits as-is; converting them through a time zone would shift them.
+  const match = `${value}`.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+
+  if (!match) {
+    return `${value}`;
+  }
+
+  const [, year, month, day, hour, minute] = match.map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day, hour, minute)).toLocaleString([], {
+    timeZone: 'UTC',
     month: 'short',
     day: 'numeric',
     hour: 'numeric',

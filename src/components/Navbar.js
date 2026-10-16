@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const navGroups = [
@@ -36,7 +36,29 @@ const navGroups = [
 function Navbar() {
   const navigate = useNavigate();
   const { employee, logout } = useAuth();
+  const location = useLocation();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // On compact screens the nav is a collapsible panel; close it after navigating.
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMenuOpen]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -50,15 +72,26 @@ function Navbar() {
   };
 
   return (
-    <aside className="admin-sidebar">
+    <aside className={`admin-sidebar${isMenuOpen ? ' is-menu-open' : ''}`}>
       <div className="sidebar-brand">
         <img src="/GCC-LOGO.png" alt="Goa Community College logo" className="sidebar-brand-logo" />
         <div>
           <p className="sidebar-brand-label">Library Attendance</p>
           <strong>Goa Community College</strong>
         </div>
+        <button
+          type="button"
+          className="sidebar-menu-toggle"
+          aria-expanded={isMenuOpen}
+          aria-controls="sidebar-menu-panel"
+          onClick={() => setIsMenuOpen((open) => !open)}
+        >
+          <span className="sidebar-menu-icon" aria-hidden="true" />
+          <span>{isMenuOpen ? 'Close' : 'Menu'}</span>
+        </button>
       </div>
 
+      <div id="sidebar-menu-panel" className="sidebar-menu-panel">
       <div className="sidebar-nav-sections">
         {navGroups.map((group) => (
           <div key={group.title} className="sidebar-nav-group">
@@ -96,6 +129,7 @@ function Navbar() {
       >
         {isLoggingOut ? 'Signing out...' : 'Sign Out'}
       </button>
+      </div>
     </aside>
   );
 }

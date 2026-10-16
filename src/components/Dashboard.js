@@ -14,10 +14,9 @@ import {
   Legend,
   ArcElement,
   PointElement,
-  LineElement,
-  RadialLinearScale
+  LineElement
 } from 'chart.js';
-import { Bar, Doughnut, Line, Radar } from 'react-chartjs-2';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import api, { attendanceApi, buildAssetUrl, statsApi, studentApi } from '../services/api';
@@ -31,8 +30,7 @@ ChartJS.register(
   Legend,
   ArcElement,
   PointElement,
-  LineElement,
-  RadialLinearScale
+  LineElement
 );
 
 const EMPTY_STATS = {
@@ -51,7 +49,17 @@ const EMPTY_STATS = {
   availableYears: []
 };
 
-const chartPalette = ['#6f1020', '#9b2940', '#c56b7b', '#d4a24c', '#8d6e63', '#dec7a3'];
+// Categorical palette validated for lightness, chroma, colour-vision-deficiency
+// separation and contrast on white. Colours are assigned to fixed entities (a
+// purpose, a program, a year level) so a filter never repaints a series.
+const chartPalette = ['#9b2940', '#008c7e', '#c08a2b', '#5566b0', '#c56b7b'];
+const CHART_OTHER_COLOR = '#8a7178';
+const PURPOSE_ORDER = ['Study', 'Research', 'Borrow Books', 'Computer/Internet', 'Library Card Application'];
+const PROGRAM_ORDER = ['BPED', 'BECED', 'BCAED'];
+const colorForEntity = (order, value) => {
+  const index = order.indexOf(value);
+  return index >= 0 && index < chartPalette.length ? chartPalette[index] : CHART_OTHER_COLOR;
+};
 const YEAR_LEVELS = [1, 2, 3, 4];
 const TRACKER_FILTER_DEFAULTS = {
   period: 'today',
@@ -117,35 +125,41 @@ const parseAttendanceDateTime = (value) => {
   };
 };
 
-const formatDateTime = (value, compareValue) => {
+// Table cells stack time over date so a column stays one compact block
+// instead of wrapping "Oct 16, 2026, 9:50 AM" across four lines.
+function DateTimeCell({ value, compareValue }) {
   if (!value) {
-    return 'Still inside library';
+    return <span className="tracker-time-pending">Still inside</span>;
   }
 
   const parsedValue = parseAttendanceDateTime(value);
 
   if (!parsedValue) {
-    return `${value}`;
+    return <span>{`${value}`}</span>;
   }
 
   const suffix = parsedValue.hour >= 12 ? 'PM' : 'AM';
   const displayHour = parsedValue.hour % 12 || 12;
-  const formattedValue = `${MONTH_LABELS[parsedValue.month - 1]} ${parsedValue.day}, ${parsedValue.year}, ${displayHour}:${`${parsedValue.minute}`.padStart(2, '0')} ${suffix}`;
   const parsedCompareValue = compareValue ? parseAttendanceDateTime(compareValue) : null;
-
-  if (
+  const isNextDay = Boolean(
     parsedCompareValue
     && (
       parsedValue.year !== parsedCompareValue.year
       || parsedValue.month !== parsedCompareValue.month
       || parsedValue.day !== parsedCompareValue.day
     )
-  ) {
-    return `${formattedValue} (next day)`;
-  }
+  );
 
-  return formattedValue;
-};
+  return (
+    <div className="tracker-time">
+      <strong>{`${displayHour}:${`${parsedValue.minute}`.padStart(2, '0')} ${suffix}`}</strong>
+      <small>
+        {`${MONTH_LABELS[parsedValue.month - 1]} ${parsedValue.day}, ${parsedValue.year}`}
+        {isNextDay ? ' · next day' : ''}
+      </small>
+    </div>
+  );
+}
 
 const formatDuration = (minutes) => {
   const totalMinutes = Number(minutes);
@@ -784,8 +798,8 @@ function Dashboard() {
   const reportingScopeLabel = stats.filters?.label || (statsFilters.month === 'all' ? `All reports in ${statsFilters.year}` : `${MONTH_LABELS[Number(statsFilters.month) - 1]} ${statsFilters.year}`);
   const reportingBucketLabel = stats.filters?.month === 'all' ? 'Months shown' : 'Days shown';
   const reportingBucketCount = dailyData.length;
-  const purposeColors = purposeData.map((_, index) => chartPalette[index % chartPalette.length]);
-  const courseColors = courseData.map((_, index) => chartPalette[index % chartPalette.length]);
+  const purposeColors = purposeData.map((item) => colorForEntity(PURPOSE_ORDER, item.purpose));
+  const courseColors = courseData.map((item) => colorForEntity(PROGRAM_ORDER, item.course));
   const allCourses = Array.from(new Set(students.map((student) => student.course).filter(Boolean))).sort();
   const allSections = Array.from(new Set(students.map((student) => student.section).filter(Boolean))).sort();
   const totalPrograms = courseData.length;
@@ -821,16 +835,12 @@ function Dashboard() {
         (item) => item.course === course && Number(item.year_level) === yearLevel
       )?.count || 0
     ),
-    backgroundColor: chartPalette[index % chartPalette.length],
-    borderRadius: 8,
+    backgroundColor: chartPalette[index],
+    borderColor: '#ffffff',
+    borderWidth: { top: 0, left: 1, right: 1, bottom: 0 },
+    borderRadius: 4,
     maxBarThickness: 44
   }));
-
-  let runningTotal = 0;
-  const cumulativeDailyVisits = dailyData.map((item) => {
-    runningTotal += Number(item.visits) || 0;
-    return runningTotal;
-  });
 
   const purposeRatioChart = {
     labels: purposeData.map((item) => item.purpose),
@@ -856,31 +866,9 @@ function Dashboard() {
     ]
   };
 
-  const visitorStatusChart = {
-    labels: ['Completed Visits', 'Active Visitors'],
-    datasets: [
-      {
-        data: [completedVisits, stats.activeVisitors],
-        backgroundColor: ['#c56b7b', '#6f1020'],
-        borderColor: '#ffffff',
-        borderWidth: 2
-      }
-    ]
-  };
-
-  const radarChart = {
-    labels: courseData.map((item) => item.course),
-    datasets: [
-      {
-        label: 'Students',
-        data: courseData.map((item) => item.count),
-        borderColor: '#6f1020',
-        backgroundColor: 'rgba(111, 16, 32, 0.18)',
-        pointBackgroundColor: '#6f1020',
-        pointBorderColor: '#ffffff'
-      }
-    ]
-  };
+  const activeShare = stats.totalVisits > 0
+    ? Math.round((stats.activeVisitors / stats.totalVisits) * 1000) / 10
+    : 0;
 
   const performanceChart = {
     labels: dailyData.map((item) => item.label || item.date),
@@ -888,20 +876,15 @@ function Dashboard() {
       {
         label: stats.filters?.month === 'all' ? 'Monthly Visits' : 'Daily Visits',
         data: dailyData.map((item) => item.visits),
-        borderColor: '#6f1020',
-        backgroundColor: 'rgba(111, 16, 32, 0.12)',
-        yAxisID: 'y',
+        borderColor: '#9b2940',
+        backgroundColor: '#9b2940',
+        borderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
         fill: false,
-        tension: 0.35
-      },
-      {
-        label: 'Running Total',
-        data: cumulativeDailyVisits,
-        borderColor: '#d4a24c',
-        backgroundColor: 'rgba(212, 162, 76, 0.16)',
-        yAxisID: 'y1',
-        fill: false,
-        tension: 0.35
+        tension: 0.3
       }
     ]
   };
@@ -917,51 +900,32 @@ function Dashboard() {
     }
   };
 
-  const radarOptions = {
+  // Single series on a single axis: the title names it, so no legend box.
+  const performanceOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false
+    },
     plugins: {
       legend: {
         display: false
       }
     },
     scales: {
-      r: {
-        beginAtZero: true,
-        ticks: {
-          precision: 0
-        },
+      x: {
         grid: {
-          color: 'rgba(111, 16, 32, 0.18)'
-        },
-        angleLines: {
-          color: 'rgba(111, 16, 32, 0.12)'
-        }
-      }
-    }
-  };
-
-  const performanceOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top'
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        position: 'left',
-        ticks: {
-          precision: 0
+          display: false
         }
       },
-      y1: {
+      y: {
         beginAtZero: true,
-        position: 'right',
+        border: {
+          display: false
+        },
         grid: {
-          drawOnChartArea: false
+          color: 'rgba(67, 17, 29, 0.08)'
         },
         ticks: {
           precision: 0
@@ -979,8 +943,19 @@ function Dashboard() {
       }
     },
     scales: {
+      x: {
+        grid: {
+          display: false
+        }
+      },
       y: {
         beginAtZero: true,
+        border: {
+          display: false
+        },
+        grid: {
+          color: 'rgba(67, 17, 29, 0.08)'
+        },
         ticks: {
           precision: 0
         }
@@ -1305,10 +1280,15 @@ function Dashboard() {
                         <small>{record.student_id}</small>
                       </div>
                     </td>
-                    <td>{`${record.course || 'N/A'} / ${record.year_level ? formatYearLabel(record.year_level) : 'Year N/A'} / ${record.section ? `Section ${record.section}` : 'Section N/A'}`}</td>
+                    <td>
+                      <div className="tracker-program">
+                        <strong>{record.course || 'N/A'}</strong>
+                        <small>{`${record.year_level ? formatYearLabel(record.year_level) : 'Year N/A'} · ${record.section ? `Sec ${record.section}` : 'No section'}`}</small>
+                      </div>
+                    </td>
                     <td>{record.purpose}</td>
-                    <td>{formatDateTime(record.check_in)}</td>
-                    <td>{formatDateTime(record.check_out, record.check_in)}</td>
+                    <td><DateTimeCell value={record.check_in} /></td>
+                    <td><DateTimeCell value={record.check_out} compareValue={record.check_in} /></td>
                     <td>
                       <TrackerActorCell
                         checkedInBy={record.checked_in_by}
@@ -1364,36 +1344,53 @@ function Dashboard() {
 
         <article className="dashboard-panel">
           <div className="dashboard-panel-header">
-            <h3>Visitor Status Ratio</h3>
+            <h3>Visitor Status</h3>
           </div>
-          <div className="dashboard-chart-wrap chart-compact">
-            {stats.totalVisits > 0 ? (
-              <Doughnut data={visitorStatusChart} options={sharedDoughnutOptions} />
-            ) : (
-              <p className="dashboard-empty-copy">Visitor status will appear after the first check-in is logged.</p>
-            )}
-          </div>
-        </article>
-
-        <article className="dashboard-panel">
-          <div className="dashboard-panel-header">
-            <h3>Program Reach Radar</h3>
-          </div>
-          <div className="dashboard-chart-wrap chart-compact">
-            {courseData.length > 0 ? (
-              <Radar data={radarChart} options={radarOptions} />
-            ) : (
-              <p className="dashboard-empty-copy">Program radar will appear after students are registered.</p>
-            )}
-          </div>
+          {stats.totalVisits > 0 ? (
+            <div className="visitor-status-stat">
+              <div className="visitor-status-hero">
+                <strong>{stats.activeVisitors}</strong>
+                <span>inside the library now</span>
+              </div>
+              <div
+                className="visitor-status-meter"
+                role="img"
+                aria-label={`${stats.activeVisitors} of ${stats.totalVisits} visits still open (${activeShare}%)`}
+              >
+                <span style={{ transform: `scaleX(${Math.min(activeShare / 100, 1)})` }} />
+              </div>
+              <dl className="visitor-status-list">
+                <div>
+                  <dt>Completed visits</dt>
+                  <dd>{completedVisits}</dd>
+                </div>
+                <div>
+                  <dt>Still open</dt>
+                  <dd>{`${stats.activeVisitors} (${activeShare}%)`}</dd>
+                </div>
+                <div>
+                  <dt>Total in period</dt>
+                  <dd>{stats.totalVisits}</dd>
+                </div>
+              </dl>
+            </div>
+          ) : (
+            <p className="dashboard-empty-copy">Visitor status will appear after the first check-in is logged.</p>
+          )}
         </article>
       </section>
 
       <section className="dashboard-card-grid dashboard-bottom-grid">
         <article className="dashboard-panel dashboard-panel-large">
-          <div className="dashboard-panel-header">
-            <h3>Attendance Performance Overview</h3>
-            <p className="dashboard-subcopy mb-0">{reportingScopeLabel}</p>
+          <div className="dashboard-panel-header dashboard-panel-header-spread">
+            <div>
+              <h3>{stats.filters?.month === 'all' ? 'Monthly Visits' : 'Daily Visits'}</h3>
+              <p className="dashboard-subcopy mb-0">{reportingScopeLabel}</p>
+            </div>
+            <div className="dashboard-panel-total">
+              <strong>{stats.totalVisits}</strong>
+              <span>total visits</span>
+            </div>
           </div>
           <div className="dashboard-chart-wrap chart-tall">
             {dailyData.length > 0 ? (
