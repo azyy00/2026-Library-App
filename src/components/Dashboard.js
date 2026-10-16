@@ -210,6 +210,79 @@ const formatActor = (value) => {
   };
 };
 
+// Line icons (24px grid, 2px stroke) for the dashboard tool tiles. Drawn
+// inline so the tiles need no icon library.
+const TOOL_ICON_PATHS = {
+  clipboard: (
+    <>
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="m9 14 2 2 4-4" />
+    </>
+  ),
+  kiosk: (
+    <>
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+      <path d="M7 8v4M10 8v4M13 8v4M16 8v4" />
+    </>
+  ),
+  visitors: (
+    <>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  book: (
+    <>
+      <path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
+      <path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
+    </>
+  ),
+  shelf: (
+    <>
+      <path d="M4 4v16M8 7v13M12 5v15" />
+      <path d="m15.5 6.5 4.5 13.5" />
+      <path d="M2 20h20" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m17 8-5-5-5 5M12 3v12" />
+    </>
+  ),
+  template: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3" />
+    </>
+  ),
+  sheet: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M8 13h8M8 17h8M12 11v8" />
+    </>
+  ),
+  chart: (
+    <>
+      <path d="M3 3v18h18" />
+      <path d="M8 17v-4M13 17V8M18 17v-7" />
+    </>
+  )
+};
+
+function ToolIcon({ name }) {
+  return (
+    <span className="tool-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {TOOL_ICON_PATHS[name]}
+      </svg>
+    </span>
+  );
+}
+
 function TrackerActorCell({ checkedInBy, checkedOutBy }) {
   const inActor = formatActor(checkedInBy);
   const outActor = formatActor(checkedOutBy);
@@ -1088,58 +1161,59 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="dashboard-tool-grid">
-            <label className="dashboard-upload-tile">
-              <span>Import students</span>
-              <small>{isImporting ? 'Uploading...' : 'Excel file'}</small>
+          <nav className="dashboard-tool-grid" aria-label="Library tools">
+            <Link to="/attendance" className="dashboard-tool-tile tool-tone-desk" title="Open the check-in workspace">
+              <ToolIcon name="clipboard" />
+              <span>Attendance desk</span>
+            </Link>
+
+            <Link to="/monitoring" className="dashboard-tool-tile tool-tone-desk" title="Open the student ID scan screen">
+              <ToolIcon name="kiosk" />
+              <span>Monitoring kiosk</span>
+            </Link>
+
+            <Link to="/active" className="dashboard-tool-tile tool-tone-desk" title="Review open attendance records">
+              <ToolIcon name="visitors" />
+              <span>Active visitors</span>
+            </Link>
+
+            <Link to="/opac" className="dashboard-tool-tile tool-tone-books" title="Search books and open catalog records">
+              <ToolIcon name="book" />
+              <span>Book catalog</span>
+            </Link>
+
+            <Link to="/inventory-books" className="dashboard-tool-tile tool-tone-books" title="Manage the books that appear in the catalog">
+              <ToolIcon name="shelf" />
+              <span>Inventory</span>
+            </Link>
+
+            <label className="dashboard-tool-tile dashboard-upload-tile tool-tone-students" title="Import students from an Excel file">
+              <ToolIcon name="upload" />
+              <span>{isImporting ? 'Uploading…' : 'Import students'}</span>
               <input
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleImportStudents}
                 disabled={isImporting}
+                aria-label="Import students from an Excel file"
               />
             </label>
 
-            <button type="button" className="dashboard-tool-tile" onClick={downloadTemplate}>
-              <span>Download template</span>
-              <small>Starter import sheet</small>
+            <button type="button" className="dashboard-tool-tile tool-tone-students" onClick={downloadTemplate} title="Download the starter import sheet">
+              <ToolIcon name="template" />
+              <span>Import template</span>
             </button>
 
-            <button type="button" className="dashboard-tool-tile" onClick={exportStudentActivities}>
+            <button type="button" className="dashboard-tool-tile tool-tone-reports" onClick={exportStudentActivities} title="Export attendance analytics to Excel">
+              <ToolIcon name="sheet" />
               <span>Export report</span>
-              <small>Excel analytics</small>
             </button>
 
-            <button type="button" className="dashboard-tool-tile" onClick={exportCharts}>
+            <button type="button" className="dashboard-tool-tile tool-tone-reports" onClick={exportCharts} title="Save the dashboard charts as an image">
+              <ToolIcon name="chart" />
               <span>Export charts</span>
-              <small>Image snapshot</small>
             </button>
-
-            <Link to="/attendance" className="dashboard-tool-tile dashboard-tool-link">
-              <span>Attendance desk</span>
-              <small>Open check-in workspace</small>
-            </Link>
-
-            <Link to="/monitoring" className="dashboard-tool-tile dashboard-tool-link">
-              <span>Monitoring kiosk</span>
-              <small>Open student ID scan screen</small>
-            </Link>
-
-            <Link to="/opac" className="dashboard-tool-tile dashboard-tool-link">
-              <span>Online Public Access Catalog</span>
-              <small>Search books and open catalog records</small>
-            </Link>
-
-            <Link to="/inventory-books" className="dashboard-tool-tile dashboard-tool-link">
-              <span>Inventory Books</span>
-              <small>Manage books that appear in the OPAC</small>
-            </Link>
-
-            <Link to="/active" className="dashboard-tool-tile dashboard-tool-link">
-              <span>Active visitors</span>
-              <small>Review open records</small>
-            </Link>
-          </div>
+          </nav>
         </div>
       </section>
 
