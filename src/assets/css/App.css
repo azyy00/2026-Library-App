@@ -4805,11 +4805,9 @@ p {
   z-index: 1;
 }
 
-/* Result cards — book-spine accent, arrow CTA, spring hover */
+/* Result cards — arrow CTA, spring hover */
 .catalog-result-card {
   position: relative;
-  overflow: hidden;
-  padding-left: 1.35rem;
   background: #fffdfb;
   transition:
     transform var(--dur-enter) var(--ease-out),
@@ -4817,27 +4815,10 @@ p {
     border-color var(--dur-enter) var(--ease-out);
 }
 
-.catalog-result-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 5px;
-  height: 100%;
-  background: linear-gradient(180deg, #9b2940, #6f1020);
-  opacity: 0.9;
-  transform-origin: left center;
-  transition: transform var(--dur-enter) var(--ease-out);
-}
-
 .catalog-result-card:hover {
   transform: translateY(-4px);
   border-color: rgba(111, 16, 32, 0.3);
   box-shadow: 0 24px 42px rgba(111, 16, 32, 0.17);
-}
-
-.catalog-result-card:hover::before {
-  transform: scaleX(1.6);
 }
 
 .catalog-result-card:focus-visible {
@@ -4885,7 +4866,7 @@ p {
 .catalog-skeleton-card {
   display: grid;
   gap: 0.85rem;
-  padding: 1.2rem 1.05rem 1.2rem 1.35rem;
+  padding: 1.2rem 1.05rem;
   border: 1px solid rgba(111, 16, 32, 0.1);
   border-radius: 22px;
   background: #fffdfb;
@@ -4897,7 +4878,6 @@ p {
 
 @media (prefers-reduced-motion: reduce) {
   .catalog-result-card,
-  .catalog-result-card::before,
   .catalog-result-footer strong::after {
     transition: none;
   }
@@ -4926,7 +4906,6 @@ p {
   .monitoring-purpose-button:hover,
   .catalog-result-card:hover,
   .catalog-related-item:hover,
-  .catalog-result-card:hover::before,
   .catalog-result-card:hover .catalog-result-footer strong::after {
     transform: none;
   }
